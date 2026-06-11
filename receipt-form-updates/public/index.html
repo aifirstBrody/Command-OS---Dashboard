@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Peak Refuel — Ingredient Receipt</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --orange: #FF671F;
+    --orange-dark: #D6562B;
+    --green: #ACBF37;
+    --bg: #1a1715;
+    --surface: #231F20;
+    --surface2: #2a2522;
+    --border: rgba(255,255,255,0.08);
+    --border-orange: rgba(255,103,31,0.3);
+    --text: #E9E9E9;
+    --text-muted: #9a9491;
+    --text-dim: #5a5652;
+    --red: #ef4444;
+    --yellow: #fbbf24;
+    --radius: 10px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+  }
+
+  /* ── Layout ── */
+  .page { max-width: 680px; margin: 0 auto; }
+
+  /* ── Header ── */
+  .header { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .logo { width: 40px; height: 32px; flex-shrink: 0; }
+  .header-text h1 { font-size: 18px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #fff; }
+  .header-text p { font-size: 11px; color: var(--orange); font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 2px; }
+
+  /* ── Cards ── */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 16px; }
+
+  /* ── Form fields ── */
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 6px; }
+  .field input, .field select {
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 14px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  .field input::placeholder { color: var(--text-dim); }
+  .field input:focus, .field select:focus { border-color: var(--border-orange); }
+  .field input:disabled { opacity: 0.5; cursor: not-allowed; }
+  .field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239a9491' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; cursor: pointer; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field-row-3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; }
+  .required { color: var(--orange); margin-left: 2px; }
+
+  /* ── Add ingredient button ── */
+  .btn-add {
+    width: 100%; padding: 11px;
+    background: rgba(255,103,31,0.1);
+    border: 1px dashed var(--border-orange);
+    border-radius: 8px;
+    color: var(--orange);
+    font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: background 0.15s;
+    margin-top: 4px;
+  }
+  .btn-add:hover { background: rgba(255,103,31,0.18); }
+  .btn-add:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── Cart ── */
+  .cart-empty { text-align: center; padding: 24px; color: var(--text-dim); font-size: 13px; border: 1px dashed rgba(255,255,255,0.06); border-radius: 8px; }
+  .cart-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 14px; border-radius: 8px;
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+  .cart-item-num { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,103,31,0.15); color: var(--orange); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .cart-item-info { flex: 1; min-width: 0; }
+  .cart-item-name { font-weight: 600; font-size: 14px; color: #fff; }
+  .cart-item-detail { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+  .cart-item-variance { font-size: 11px; color: var(--yellow); margin-top: 3px; font-weight: 600; }
+  .btn-remove { background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 4px; border-radius: 4px; flex-shrink: 0; transition: color 0.15s; }
+  .btn-remove:hover { color: var(--red); }
+  .cart-count { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+
+  /* ── Submit ── */
+  .submit-section { margin-top: 8px; }
+  .btn-submit {
+    width: 100%; padding: 14px;
+    background: var(--green);
+    border: none; border-radius: var(--radius);
+    color: #1a1715; font-size: 15px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+  }
+  .btn-submit:hover:not(:disabled) { opacity: 0.88; }
+  .btn-submit:active:not(:disabled) { transform: scale(0.99); }
+  .btn-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .sandbox-note { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); margin-top: 10px; }
+  .sandbox-note svg { flex-shrink: 0; }
+
+  /* ── Status messages ── */
+  .alert { border-radius: 8px; padding: 12px 16px; font-size: 13px; margin-bottom: 16px; line-height: 1.5; }
+  .alert-error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+  .alert-success { background: rgba(172,191,55,0.1); border: 1px solid rgba(172,191,55,0.3); color: var(--green); }
+  .alert-warning { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); color: var(--yellow); }
+
+  /* ── Success screen ── */
+  .success-screen { text-align: center; padding: 40px 24px; }
+  .success-icon { font-size: 48px; margin-bottom: 16px; }
+  .success-screen h2 { font-size: 22px; font-weight: 800; color: var(--green); letter-spacing: 0.04em; margin-bottom: 8px; }
+  .success-screen p { color: var(--text-muted); font-size: 14px; margin-bottom: 6px; }
+  .receipt-id { font-family: monospace; font-size: 16px; color: #fff; font-weight: 700; background: rgba(255,255,255,0.06); border: 1px solid var(--border); border-radius: 6px; padding: 4px 12px; display: inline-block; margin: 8px 0 20px; }
+  .summary-list { text-align: left; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 24px; }
+  .summary-row { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 13px; }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-row .s-name { flex: 1; color: var(--text-muted); }
+  .summary-row .s-val { font-weight: 600; color: #fff; }
+  .summary-row .s-mismatch { font-size: 11px; color: var(--yellow); font-weight: 600; margin-left: 8px; }
+  .btn-new { padding: 12px 32px; background: rgba(255,103,31,0.15); border: 1px solid var(--border-orange); border-radius: var(--radius); color: var(--orange); font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.15s; }
+  .btn-new:hover { background: rgba(255,103,31,0.25); }
+
+  /* ── Spinner ── */
+  .spinner { width: 18px; height: 18px; border: 2px solid rgba(26,23,21,0.3); border-top-color: #1a1715; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 520px) {
+    .field-row { grid-template-columns: 1fr; }
+    .field-row-3 { grid-template-columns: 1fr 1fr; }
+    .field-row-3 .field:first-child { grid-column: 1 / -1; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <svg class="logo" viewBox="0 0 44 36" fill="none">
+      <path d="M22 1L2 35h40L22 1z" fill="#FF671F"/>
+      <path d="M14.5 35L22 17l7.5 18" fill="#D6562B"/>
+    </svg>
+    <div class="header-text">
+      <h1>Peak Refuel</h1>
+      <p>Ingredient Receipt Confirmation</p>
+    </div>
+  </div>
+
+  <!-- Success screen (hidden until submit succeeds) -->
+  <div id="successScreen" style="display:none">
+    <div class="card success-screen">
+      <div class="success-icon">✅</div>
+      <h2>Receipt Submitted</h2>
+      <p>Acumatica Receipt #</p>
+      <div class="receipt-id" id="successReceiptNbr">—</div>
+      <p id="successMismatch" style="display:none;color:var(--yellow);font-size:13px;margin-bottom:12px;"></p>
+      <div class="summary-list" id="successSummary"></div>
+      <button class="btn-new" onclick="resetForm()">Submit Another Receipt</button>
+    </div>
+  </div>
+
+  <!-- Main form -->
+  <div id="mainForm">
+
+    <!-- Batch info -->
+    <div class="card">
+      <div class="card-title">Batch / Delivery Information</div>
+
+      <div class="field">
+        <label>Batch / Run Number <span class="required">*</span></label>
+        <input type="text" id="batchId" placeholder="e.g. B-2024-0601" autocomplete="off"/>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Product Name</label>
+          <input type="text" id="productName" placeholder="e.g. Protein Crunch Berry"/>
+        </div>
+        <div class="field">
+          <label>Run / Start Date</label>
+          <input type="date" id="startDate"/>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Date Received <span class="required">*</span></label>
+        <input type="date" id="dateReceived"/>
+      </div>
+    </div>
+
+    <!-- Add ingredient -->
+    <div class="card">
+      <div class="card-title">Add Ingredient</div>
+
+      <div id="addError" class="alert alert-error" style="display:none"></div>
+
+      <div class="field">
+        <label>Ingredient Name <span class="required">*</span></label>
+        <input type="text" id="ingName" placeholder="e.g. Whey Protein Isolate" autocomplete="off"/>
+      </div>
+
+      <div class="field">
+        <label>Acumatica Inventory ID <span class="required">*</span></label>
+        <input type="text" id="ingId" placeholder="e.g. RM-WPI-001" autocomplete="off" style="text-transform:uppercase"/>
+      </div>
+
+      <div class="field-row-3">
+        <div class="field">
+          <label>Actual Weight Received <span class="required">*</span></label>
+          <input type="number" id="actualWeight" placeholder="0.00" min="0.01" step="0.01"/>
+        </div>
+        <div class="field">
+          <label>Expected Weight</label>
+          <input type="number" id="expectedWeight" placeholder="0.00" min="0" step="0.01"/>
+        </div>
+        <div class="field">
+          <label>Unit</label>
+          <select id="uom">
+            <option value="LBS">lbs</option>
+            <option value="OZ">oz</option>
+            <option value="KG">kg</option>
+            <option value="G">g</option>
+            <option value="EA">ea</option>
+            <option value="CASE">case</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn-add" id="btnAdd" onclick="addIngredient()">+ Add to Receipt</button>
+    </div>
+
+    <!-- Cart -->
+    <div class="card">
+      <div class="card-title">Receipt Cart</div>
+      <div id="cartCount" class="cart-count" style="display:none"></div>
+      <div id="cartItems">
+        <div class="cart-empty" id="cartEmpty">No ingredients added yet. Use the form above to add items.</div>
+      </div>
+    </div>
+
+    <!-- Validation / submit error -->
+    <div id="submitError" class="alert alert-error" style="display:none"></div>
+    <div id="submitWarning" class="alert alert-warning" style="display:none"></div>
+
+    <!-- Submit -->
+    <div class="submit-section">
+      <button class="btn-submit" id="btnSubmit" onclick="submitReceipt()" disabled>
+        Submit Receipt
+      </button>
+      <div class="sandbox-note">
+        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Submits directly to Acumatica. Mismatch alerts sent automatically for variance &gt; 5%.
+      </div>
+    </div>
+
+  </div><!-- /mainForm -->
+</div>
+
+<script>
+  // ── State ────────────────────────────────────────────────────────────────────
+  let cart = [];
+  let submitting = false;
+
+  // Pre-fill today's date
+  document.getElementById('dateReceived').value = new Date().toISOString().split('T')[0];
+
+  // ── Add ingredient to cart ───────────────────────────────────────────────────
+  function addIngredient() {
+    clearError('addError');
+
+    const name     = document.getElementById('ingName').value.trim();
+    const id       = document.getElementById('ingId').value.trim().toUpperCase();
+    const actual   = parseFloat(document.getElementById('actualWeight').value);
+    const expected = parseFloat(document.getElementById('expectedWeight').value) || 0;
+    const uom      = document.getElementById('uom').value;
+
+    if (!name)           return showError('addError', 'Ingredient name is required.');
+    if (!id)             return showError('addError', 'Acumatica Inventory ID is required.');
+    if (!actual || actual <= 0) return showError('addError', 'Actual weight must be a positive number.');
+
+    // Check for duplicate inventory ID in cart
+    if (cart.some(i => i.ingredientId === id)) {
+      return showError('addError', `${id} is already in the cart. Remove it first to edit.`);
+    }
+
+    let variancePct = 0;
+    if (expected > 0) {
+      variancePct = Math.round(Math.abs(((actual - expected) / expected) * 100) * 10) / 10;
+    }
+
+    cart.push({ ingredientId: id, ingredientName: name, actualWeight: actual, expectedWeight: expected, uom, variancePct, hasMismatch: variancePct > 5 });
+
+    // Clear ingredient fields
+    document.getElementById('ingName').value = '';
+    document.getElementById('ingId').value = '';
+    document.getElementById('actualWeight').value = '';
+    document.getElementById('expectedWeight').value = '';
+    document.getElementById('uom').value = 'LBS';
+    document.getElementById('ingName').focus();
+
+    renderCart();
+    updateSubmitButton();
+  }
+
+  // ── Remove from cart ─────────────────────────────────────────────────────────
+  function removeIngredient(idx) {
+    cart.splice(idx, 1);
+    renderCart();
+    updateSubmitButton();
+  }
+
+  // ── Render cart ──────────────────────────────────────────────────────────────
+  function renderCart() {
+    const container = document.getElementById('cartItems');
+    const empty     = document.getElementById('cartEmpty');
+    const countEl   = document.getElementById('cartCount');
+
+    if (cart.length === 0) {
+      empty.style.display = '';
+      countEl.style.display = 'none';
+      container.innerHTML = '';
+      container.appendChild(empty);
+      return;
+    }
+
+    empty.style.display = 'none';
+    countEl.style.display = '';
+    countEl.textContent = `${cart.length} ingredient${cart.length !== 1 ? 's' : ''} — review before submitting`;
+
+    container.innerHTML = '';
+    cart.forEach((item, idx) => {
+      const div = document.createElement('div');
+      div.className = 'cart-item';
+
+      const expectedLine = item.expectedWeight > 0
+        ? `Actual: <strong>${item.actualWeight} ${item.uom}</strong> · Expected: ${item.expectedWeight} ${item.uom}`
+        : `Actual: <strong>${item.actualWeight} ${item.uom}</strong>`;
+
+      const mismatchLine = item.hasMismatch
+        ? `<div class="cart-item-variance">⚠ ${item.variancePct}% variance — mismatch alert will be sent</div>`
+        : (item.variancePct > 0 ? `<div style="font-size:11px;color:var(--green);margin-top:3px;">✓ ${item.variancePct}% variance — within threshold</div>` : '');
+
+      div.innerHTML = `
+        <div class="cart-item-num">${idx + 1}</div>
+        <div class="cart-item-info">
+          <div class="cart-item-name">${escHtml(item.ingredientName)}</div>
+          <div class="cart-item-detail"><span style="font-family:monospace;font-size:11px;color:var(--text-dim)">${escHtml(item.ingredientId)}</span> · ${expectedLine}</div>
+          ${mismatchLine}
+        </div>
+        <button class="btn-remove" onclick="removeIngredient(${idx})" title="Remove">
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>`;
+      container.appendChild(div);
+    });
+  }
+
+  // ── Submit ───────────────────────────────────────────────────────────────────
+  async function submitReceipt() {
+    if (submitting || cart.length === 0) return;
+
+    clearError('submitError');
+    clearError('submitWarning');
+
+    const batchId     = document.getElementById('batchId').value.trim();
+    const productName = document.getElementById('productName').value.trim();
+    const startDate   = document.getElementById('startDate').value;
+    const dateReceived = document.getElementById('dateReceived').value;
+
+    if (!batchId)      return showError('submitError', 'Batch / Run Number is required.');
+    if (!dateReceived) return showError('submitError', 'Date Received is required.');
+
+    submitting = true;
+    const btn = document.getElementById('btnSubmit');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Submitting to Acumatica…';
+
+    try {
+      const res = await fetch('/api/submit-receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batchId, productName, startDate, dateReceived, ingredients: cart })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok && res.status !== 207) {
+        throw new Error(data.error || `Server error ${res.status}`);
+      }
+
+      if (data.receiptError) {
+        showError('submitWarning', `⚠ Acumatica receipt failed: ${data.receiptError}\nAll other data was logged.`);
+      }
+
+      showSuccessScreen(data, batchId);
+
+    } catch (err) {
+      showError('submitError', `Submission failed: ${err.message}`);
+      btn.disabled = false;
+      btn.innerHTML = `Submit Receipt (${cart.length} item${cart.length !== 1 ? 's' : ''})`;
+    } finally {
+      submitting = false;
+    }
+  }
+
+  // ── Success screen ───────────────────────────────────────────────────────────
+  function showSuccessScreen(data, batchId) {
+    document.getElementById('mainForm').style.display = 'none';
+
+    document.getElementById('successReceiptNbr').textContent = data.receiptNbr || '(pending)';
+
+    const mismatchEl = document.getElementById('successMismatch');
+    if (data.mismatchCount > 0) {
+      mismatchEl.style.display = '';
+      mismatchEl.textContent = `⚠ ${data.mismatchCount} ingredient${data.mismatchCount !== 1 ? 's' : ''} exceeded 5% variance — mismatch alerts sent.`;
+    }
+
+    const summaryEl = document.getElementById('successSummary');
+    summaryEl.innerHTML = (data.items || []).map(item => {
+      const mismatch = item.hasMismatch ? `<span class="s-mismatch">⚠ ${item.variancePct}% var</span>` : '';
+      return `<div class="summary-row">
+        <span class="s-name">${escHtml(item.ingredientName)}<br><span style="font-size:11px;font-family:monospace;color:var(--text-dim)">${escHtml(item.ingredientId)}</span></span>
+        <span class="s-val">${item.actualWeight} ${(cart.find(c => c.ingredientId === item.ingredientId) || {}).uom || ''}</span>
+        ${mismatch}
+      </div>`;
+    }).join('');
+
+    document.getElementById('successScreen').style.display = '';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ── Reset ────────────────────────────────────────────────────────────────────
+  function resetForm() {
+    cart = [];
+    submitting = false;
+
+    document.getElementById('batchId').value = '';
+    document.getElementById('productName').value = '';
+    document.getElementById('startDate').value = '';
+    document.getElementById('dateReceived').value = new Date().toISOString().split('T')[0];
+    document.getElementById('ingName').value = '';
+    document.getElementById('ingId').value = '';
+    document.getElementById('actualWeight').value = '';
+    document.getElementById('expectedWeight').value = '';
+    document.getElementById('uom').value = 'LBS';
+
+    renderCart();
+    updateSubmitButton();
+    clearError('submitError');
+    clearError('submitWarning');
+
+    document.getElementById('successScreen').style.display = 'none';
+    document.getElementById('mainForm').style.display = '';
+    document.getElementById('btnSubmit').innerHTML = 'Submit Receipt';
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  function updateSubmitButton() {
+    const btn = document.getElementById('btnSubmit');
+    const n = cart.length;
+    btn.disabled = n === 0 || submitting;
+    if (n > 0) btn.innerHTML = `Submit Receipt (${n} item${n !== 1 ? 's' : ''})`;
+    else btn.innerHTML = 'Submit Receipt';
+  }
+
+  function showError(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.style.display = '';
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function clearError(id) {
+    const el = document.getElementById(id);
+    el.textContent = '';
+    el.style.display = 'none';
+  }
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Allow Enter key in ingredient fields to trigger Add
+  ['ingName','ingId','actualWeight','expectedWeight'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); addIngredient(); }
+    });
+  });
+</script>
+</body>
+</html>
