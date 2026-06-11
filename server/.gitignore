@@ -1,0 +1,13 @@
+node_modules/
+.env
+
+# Conversation logs — gitignored, live on local machine only
+logs/conversations/*.json
+logs/conversations/*.md
+logs/submissions/*.jsonl
+logs/receipts/*.json
+
+# Keep the directory structure
+!logs/conversations/.gitkeep
+!logs/submissions/.gitkeep
+!logs/receipts/.gitkeep
