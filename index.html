@@ -143,6 +143,20 @@ tailwind.config = {
 
   /* Role pill */
   .role-pill { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 8px; border-radius: 99px; }
+
+  /* Chat panel */
+  .chat-user { background: linear-gradient(135deg, rgba(255,103,31,0.15), rgba(214,86,43,0.1)); border: 1px solid rgba(255,103,31,0.25); }
+  .chat-bot { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+  .chat-scroll { scroll-behavior: smooth; }
+  @keyframes bounce-dot { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+  .bounce-dot { animation: bounce-dot 1.2s infinite; }
+
+  /* Status card */
+  .status-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 12px 16px; }
+
+  /* Dept card */
+  .dept-card { background: #2a2522; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 16px; transition: border-color 0.15s; }
+  .dept-card:hover { border-color: rgba(255,103,31,0.2); }
 </style>
 </head>
 <body x-data="app()" x-init="init()">
@@ -777,6 +791,207 @@ tailwind.config = {
         </div>
       </div>
 
+      <!-- ═══════════════════════════════════════ -->
+      <!-- VIEW: CHRIS CHAT                        -->
+      <!-- ═══════════════════════════════════════ -->
+      <div class="view-panel" :class="{active: activeView==='chat'}">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+
+          <!-- Chat Main Panel -->
+          <div class="lg:col-span-3 flex flex-col" style="height:calc(100vh - 160px);min-height:520px">
+            <div class="card flex flex-col h-full overflow-hidden">
+
+              <!-- Chat Header -->
+              <div class="flex items-center justify-between px-4 py-3 border-b border-white/5 flex-shrink-0">
+                <div class="flex items-center gap-3">
+                  <div class="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0" style="background:rgba(255,103,31,0.12);border:1px solid rgba(255,103,31,0.25)">🤖</div>
+                  <div>
+                    <div class="font-semibold text-sm text-white">Peak Refuel Assistant</div>
+                    <div class="text-xs text-gray-500">Routes through <span class="text-brand-orange font-medium">/api/chat</span> · Never calls AI directly from browser</div>
+                  </div>
+                </div>
+                <span class="badge-orange text-xs" x-text="'Source: ' + chatSource"></span>
+              </div>
+
+              <!-- Messages -->
+              <div class="flex-1 overflow-y-auto p-4 space-y-4 chat-scroll" x-ref="chatScroll">
+                <!-- Empty state -->
+                <div x-show="chatMessages.length===0" class="flex flex-col items-center justify-center h-full text-center py-12">
+                  <div class="text-4xl mb-3">💬</div>
+                  <div class="font-semibold text-white mb-1">Ask anything about Peak Refuel operations</div>
+                  <div class="text-sm text-gray-500 max-w-xs">Production status, inventory levels, orders, supplier info, yield trends — all routed securely through the backend.</div>
+                </div>
+
+                <template x-for="msg in chatMessages" :key="msg.id">
+                  <div class="flex" :class="msg.role==='user'?'justify-end':'justify-start'">
+                    <div style="max-width:76%">
+                      <!-- Meta row -->
+                      <div class="flex items-center gap-2 mb-1" :class="msg.role==='user'?'justify-end':'justify-start'">
+                        <span class="text-xs text-gray-600" x-text="msg.timestamp"></span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full" :class="msg.role==='user'?'text-brand-orange':'text-gray-400'" style="background:rgba(255,255,255,0.06)" x-text="msg.role==='user'?('Chris · '+(msg.dept||'General')):'Assistant'"></span>
+                        <span x-show="msg.source && msg.source!=='error'" class="badge-gray text-xs" x-text="msg.source"></span>
+                        <span x-show="msg.source==='error'" class="badge-red text-xs">Error</span>
+                      </div>
+                      <!-- Bubble -->
+                      <div class="px-4 py-3 rounded-2xl text-sm leading-relaxed" :class="msg.role==='user'?'chat-user rounded-tr-sm':'chat-bot rounded-tl-sm'" x-text="msg.content"></div>
+                      <!-- Tags -->
+                      <div x-show="msg.tags && msg.tags.length>0" class="flex flex-wrap gap-1 mt-1.5" :class="msg.role==='user'?'justify-end':''">
+                        <template x-for="tag in (msg.tags||[])" :key="tag">
+                          <span class="text-xs text-gray-500 px-2 py-0.5 rounded-full" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08)" x-text="tag"></span>
+                        </template>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+
+                <!-- Typing indicator -->
+                <div x-show="chatLoading" class="flex justify-start">
+                  <div class="chat-bot px-4 py-3 rounded-2xl rounded-tl-sm flex items-center gap-1">
+                    <div class="w-2 h-2 rounded-full bg-brand-orange bounce-dot" style="animation-delay:0ms"></div>
+                    <div class="w-2 h-2 rounded-full bg-brand-orange bounce-dot" style="animation-delay:150ms"></div>
+                    <div class="w-2 h-2 rounded-full bg-brand-orange bounce-dot" style="animation-delay:300ms"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tag Bar -->
+              <div class="px-4 py-2 border-t border-white/5 flex-shrink-0" style="background:rgba(0,0,0,0.15)">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-xs text-gray-600">Tag:</span>
+                  <select x-model="chatMeta.dept" class="text-xs rounded-lg px-2 py-1 text-gray-300 focus:outline-none focus:border-brand-orange/40" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1)">
+                    <option value="">Department…</option>
+                    <template x-for="d in departments" :key="d.id">
+                      <option :value="d.id" x-text="d.label"></option>
+                    </template>
+                  </select>
+                  <select x-model="chatMeta.urgency" class="text-xs rounded-lg px-2 py-1 text-gray-300 focus:outline-none focus:border-brand-orange/40" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1)">
+                    <option value="normal">Normal</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                  <label class="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer select-none">
+                    <input type="checkbox" x-model="chatMeta.followUp" class="rounded accent-brand-orange"/>
+                    Follow-up needed
+                  </label>
+                  <span x-show="chatMeta.followUp" class="badge-yellow text-xs">Follow-up</span>
+                  <span x-show="chatMeta.urgency==='urgent'" class="badge-red text-xs">Urgent</span>
+                  <span x-show="chatMeta.urgency==='high'" class="badge-yellow text-xs">High</span>
+                </div>
+              </div>
+
+              <!-- Input Row -->
+              <div class="px-4 py-3 border-t border-white/5 flex-shrink-0">
+                <div class="flex gap-3 items-end">
+                  <textarea
+                    x-model="chatInput"
+                    @keydown.enter.prevent="if(!$event.shiftKey) sendChat()"
+                    placeholder="Ask about production, inventory, orders, vendors… (Enter to send · Shift+Enter new line)"
+                    rows="2"
+                    class="flex-1 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none resize-none"
+                    style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1)"
+                    :style="chatInput?'border-color:rgba(255,103,31,0.4)':''"
+                  ></textarea>
+                  <div class="flex flex-col gap-2">
+                    <button @click="sendChat()" :disabled="chatLoading||!chatInput.trim()" class="px-4 py-2.5 rounded-xl bg-brand-orange text-white font-bold text-sm hover:bg-brand-deep-orange transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Send</button>
+                    <button @click="logToObsidian('summary')" class="px-3 py-2 rounded-xl text-gray-400 hover:text-white transition-colors text-xs font-medium text-center" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1)" title="Save summary to Obsidian">📝 Log</button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Right Sidebar -->
+          <div class="space-y-3">
+
+            <!-- Session Info -->
+            <div class="card p-4">
+              <div class="font-semibold text-sm mb-3 text-white">Session Info</div>
+              <div class="space-y-2 text-xs text-gray-400">
+                <div class="flex justify-between"><span>Person</span><span class="text-white font-medium">Chris</span></div>
+                <div class="flex justify-between"><span>Messages</span><span class="text-white font-medium" x-text="chatMessages.length"></span></div>
+                <div class="flex justify-between"><span>Department</span><span class="text-brand-orange font-medium" x-text="chatMeta.dept||'Untagged'"></span></div>
+                <div class="flex justify-between"><span>Urgency</span><span class="font-medium capitalize" :class="chatMeta.urgency==='urgent'?'text-red-400':chatMeta.urgency==='high'?'text-yellow-400':'text-brand-green'" x-text="chatMeta.urgency"></span></div>
+                <div class="flex justify-between"><span>Follow-up</span><span :class="chatMeta.followUp?'text-yellow-400':'text-gray-600'" x-text="chatMeta.followUp?'Yes':'No'"></span></div>
+              </div>
+              <button @click="chatMessages=[];chatInput='';obsidianLogs=[]" class="mt-3 w-full text-xs py-1.5 rounded-lg text-gray-500 hover:text-white transition-colors" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08)">Clear Session</button>
+            </div>
+
+            <!-- Obsidian Logging -->
+            <div class="card p-4">
+              <div class="font-semibold text-sm mb-3 text-white flex items-center gap-2">
+                📓 <span>Obsidian Logging</span>
+              </div>
+              <div class="space-y-2">
+                <button @click="logToObsidian('raw')" class="w-full text-left text-xs px-3 py-2 rounded-lg text-gray-400 hover:text-white transition-all" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)">💾 Save Raw Chat</button>
+                <button @click="logToObsidian('summary')" class="w-full text-left text-xs px-3 py-2 rounded-lg text-gray-400 hover:text-white transition-all" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)">📋 Save Summary</button>
+                <button @click="logToObsidian('actions')" class="w-full text-left text-xs px-3 py-2 rounded-lg text-gray-400 hover:text-white transition-all" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)">✅ Save Action Items</button>
+                <button @click="logToObsidian('sop')" class="w-full text-left text-xs px-3 py-2 rounded-lg text-gray-400 hover:text-white transition-all" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)">📐 SOP Candidates</button>
+                <button @click="logToObsidian('skills')" class="w-full text-left text-xs px-3 py-2 rounded-lg text-gray-400 hover:text-white transition-all" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)">🧠 Skill Candidates</button>
+                <button @click="logToObsidian('deptTags')" class="w-full text-left text-xs px-3 py-2 rounded-lg text-gray-400 hover:text-white transition-all" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)">🏷️ Dept Tags</button>
+              </div>
+            </div>
+
+            <!-- Recent Logs -->
+            <div class="card p-4">
+              <div class="font-semibold text-sm mb-3 text-white">Recent Logs</div>
+              <div class="space-y-2">
+                <template x-for="log in obsidianLogs.slice(0,6)" :key="log.id">
+                  <div class="flex items-center gap-2 text-xs">
+                    <span x-text="log.icon"></span>
+                    <span class="text-gray-400 flex-1 truncate" x-text="log.label"></span>
+                    <span class="text-gray-600 flex-shrink-0" x-text="log.time"></span>
+                  </div>
+                </template>
+                <div x-show="obsidianLogs.length===0" class="text-xs text-gray-600">No logs yet this session</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════ -->
+      <!-- VIEW: DEPARTMENT INTELLIGENCE           -->
+      <!-- ═══════════════════════════════════════ -->
+      <div class="view-panel" :class="{active: activeView==='departments'}">
+        <div class="flex items-center gap-3 mb-5 p-3 rounded-xl" style="background:rgba(255,103,31,0.05);border:1px solid rgba(255,103,31,0.15)">
+          <span class="text-lg">ℹ️</span>
+          <div class="text-xs text-gray-400">Department intelligence structure with agent config stubs. <span class="text-yellow-400 font-semibold">No autonomous agents are active.</span> All write-back is disabled. Configs are defined and ready to wire to backend agents.</div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          <template x-for="dept in departments" :key="dept.id">
+            <div class="dept-card">
+              <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <span class="text-2xl leading-none" x-text="dept.icon"></span>
+                  <div>
+                    <div class="font-semibold text-sm text-white leading-tight" x-text="dept.label"></div>
+                    <div class="text-xs text-gray-500 mt-0.5 leading-tight" x-text="dept.description"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="space-y-1.5 text-xs mb-3">
+                <div class="text-gray-600 font-semibold uppercase tracking-wider mb-1.5">Agent Config</div>
+                <div>
+                  <span class="text-gray-500">Sources: </span>
+                  <span class="text-gray-300" x-text="dept.agent.sources.join(' · ')"></span>
+                </div>
+                <div>
+                  <span class="text-gray-500">Outputs: </span>
+                  <span class="text-gray-300" x-text="dept.agent.outputs.join(' · ')"></span>
+                </div>
+                <div class="flex items-center gap-1.5 mt-2">
+                  <div class="w-2 h-2 rounded-full bg-yellow-400"></div>
+                  <span class="text-yellow-400 font-medium">Write-back: DISABLED (Sandbox)</span>
+                </div>
+              </div>
+              <button @click="toast('Agent config for '+dept.label+' — coming soon', 'info')" class="w-full text-xs py-1.5 rounded-lg text-gray-500 hover:text-white transition-colors" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08)">Configure Agent</button>
+            </div>
+          </template>
+        </div>
+      </div>
+
     </div><!-- /content area -->
   </main>
 </div>
@@ -853,38 +1068,44 @@ tailwind.config = {
 <!-- SETTINGS MODAL -->
 <div class="fixed inset-0 z-50 flex items-center justify-center p-4" x-show="showSettings" @click.self="showSettings=false" style="display:none" x-transition>
   <div class="overlay"></div>
-  <div class="relative z-10 w-full max-w-lg card p-6" style="background:#231F20">
-    <div class="flex items-center justify-between mb-5">
-      <div class="font-display font-bold text-xl text-white">Settings</div>
+  <div class="relative z-10 w-full max-w-lg card p-6 max-h-screen overflow-y-auto" style="background:#231F20">
+    <div class="flex items-center justify-between mb-2">
+      <div class="font-display font-bold text-xl text-white">System Status</div>
       <button @click="showSettings=false" class="text-gray-500 hover:text-white text-xl">×</button>
     </div>
-    <div class="space-y-4">
-      <div>
-        <label class="text-xs text-gray-500 font-medium uppercase tracking-wider block mb-2">Acumatica Endpoint</label>
-        <input type="text" x-model="settings.acuEndpoint" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-orange/50"/>
-      </div>
-      <div>
-        <label class="text-xs text-gray-500 font-medium uppercase tracking-wider block mb-2">API Username</label>
-        <input type="text" x-model="settings.acuUser" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-orange/50"/>
-      </div>
-      <div>
-        <label class="text-xs text-gray-500 font-medium uppercase tracking-wider block mb-2">API Password / Token</label>
-        <input type="password" x-model="settings.acuPass" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-orange/50"/>
-      </div>
-      <div>
-        <label class="text-xs text-gray-500 font-medium uppercase tracking-wider block mb-2">Slack Webhook URL</label>
-        <input type="text" x-model="settings.slackWebhook" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-orange/50"/>
-      </div>
-      <div>
-        <label class="text-xs text-gray-500 font-medium uppercase tracking-wider block mb-2">SMS (Twilio) From Number</label>
-        <input type="text" x-model="settings.twilioFrom" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-orange/50"/>
-      </div>
-      <div class="flex items-center gap-3">
+    <p class="text-xs text-gray-500 mb-5">All credentials live in backend environment variables. No API keys, passwords, or tokens are stored in this browser.</p>
+
+    <!-- Status Cards -->
+    <div class="space-y-2 mb-5">
+      <template x-for="s in systemStatus" :key="s.key">
+        <div class="status-card flex items-center justify-between">
+          <div>
+            <div class="text-sm font-medium text-white" x-text="s.label"></div>
+            <div class="text-xs text-gray-500 mt-0.5" x-text="s.detail"></div>
+          </div>
+          <div class="flex items-center gap-2 flex-shrink-0 ml-4">
+            <div class="pulse-dot flex-shrink-0" :class="s.status==='ok'?'bg-brand-green':s.status==='warn'?'bg-yellow-400':'bg-red-500'"></div>
+            <span class="text-xs font-semibold" :class="s.status==='ok'?'text-brand-green':s.status==='warn'?'text-yellow-400':'text-red-400'" x-text="s.statusLabel"></span>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- Safe preference -->
+    <div class="border-t border-white/5 pt-4 mb-4">
+      <div class="flex items-center justify-between">
         <label class="text-xs text-gray-400">Morning Brief Time</label>
         <input type="time" x-model="settings.briefTime" class="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-brand-orange/50"/>
       </div>
-      <button @click="saveSettings()" class="w-full py-2.5 rounded-xl bg-brand-orange text-white font-bold text-sm hover:bg-brand-deep-orange transition-colors">Save Settings</button>
     </div>
+
+    <!-- Sandbox notice -->
+    <div class="p-3 rounded-xl" style="background:rgba(255,103,31,0.06);border:1px solid rgba(255,103,31,0.15)">
+      <div class="text-xs font-semibold text-brand-orange mb-1">Acumatica Write-Back</div>
+      <div class="text-xs text-gray-400">Currently in <span class="text-yellow-400 font-semibold">SANDBOX MODE</span> — no live ERP writes. Contact backend admin to enable production mode.</div>
+    </div>
+
+    <button @click="saveSettings()" class="mt-4 w-full py-2.5 rounded-xl bg-brand-orange text-white font-bold text-sm hover:bg-brand-deep-orange transition-colors">Save Preferences</button>
   </div>
 </div>
 
@@ -907,13 +1128,45 @@ function app() {
     alertCount: 4,
 
     settings: {
-      acuEndpoint: 'https://yourinstance.acumatica.com/entity/Default/23.200.001',
-      acuUser: 'apiuser',
-      acuPass: '',
-      slackWebhook: 'https://hooks.slack.com/services/...',
-      twilioFrom: '+18005551234',
       briefTime: '06:00'
     },
+
+    // Connection status cards — credentials live in backend .env only
+    systemStatus: [
+      { key: 'acumatica', label: 'Acumatica Connection', detail: 'Proxied via /api/acumatica · Sandbox mode active', status: 'warn', statusLabel: 'Sandbox' },
+      { key: 'proxy', label: 'API Proxy', detail: 'Backend /api/proxy — all ERP calls routed server-side', status: 'ok', statusLabel: 'Active' },
+      { key: 'sheets', label: 'Google Sheets Logging', detail: 'Ops log spreadsheet — auto-sync on write events', status: 'ok', statusLabel: 'Connected' },
+      { key: 'obsidian', label: 'Obsidian Logging', detail: 'Local vault via backend bridge at /api/log/obsidian', status: 'warn', statusLabel: 'Config needed' },
+      { key: 'rocky', label: 'Rocky Agent', detail: 'Production readiness + reorder watcher (stub)', status: 'warn', statusLabel: 'Stub only' },
+      { key: 'simon', label: 'Simon Archive', detail: 'Long-term decision & SOP archive agent (stub)', status: 'warn', statusLabel: 'Stub only' },
+    ],
+
+    // Chat state
+    chatMessages: [],
+    chatInput: '',
+    chatLoading: false,
+    chatSource: 'backend',
+    chatSessionId: 'session-' + Date.now(),
+    chatMeta: { dept: '', urgency: 'normal', followUp: false },
+    obsidianLogs: [],
+
+    // Department intelligence structure
+    departments: [
+      { id: 'executive',   label: 'Executive',          icon: '👑', description: 'Chris + leadership decisions',       agent: { sources: ['Acumatica', 'Alerts'],        outputs: ['Morning Brief', 'Slack'],     writeback: false } },
+      { id: 'finance-ar',  label: 'Finance AR',         icon: '💰', description: 'AR, collections, cash flow',        agent: { sources: ['Acumatica', 'Sheets'],        outputs: ['AR Report', 'Alerts'],        writeback: false } },
+      { id: 'production',  label: 'Production',         icon: '🏭', description: 'MOs, runs, yield tracking',         agent: { sources: ['Acumatica', 'Chad Sheets'],   outputs: ['Yield Log', 'Blocks'],        writeback: false } },
+      { id: 'inventory',   label: 'Inventory',          icon: '📦', description: 'SKU levels, ATS, reorders',         agent: { sources: ['Acumatica'],                 outputs: ['Reorder Alerts', 'PO Drafts'], writeback: false } },
+      { id: 'sales',       label: 'Sales',              icon: '📈', description: 'SOs, forecast, retailer signals',   agent: { sources: ['Acumatica', 'CRM'],           outputs: ['Forecast Alerts', 'SO Status'], writeback: false } },
+      { id: 'marketing',   label: 'Marketing',          icon: '📣', description: 'Campaigns, brand, launches',        agent: { sources: ['Sheets', 'Slack'],            outputs: ['Campaign Log', 'Obsidian'],   writeback: false } },
+      { id: 'vendors',     label: 'Vendors',            icon: '🤝', description: 'Supplier contacts, PO tracking',    agent: { sources: ['Acumatica', 'Email'],         outputs: ['PO Status', 'Alerts'],        writeback: false } },
+      { id: 'shepherds',   label: 'Shepherds Receipts', icon: '🧾', description: 'Receipt capture + form routing',    agent: { sources: ['Receipt Form', 'Sheets'],     outputs: ['Acumatica', 'Obsidian'],      writeback: false } },
+      { id: 'sops',        label: 'SOPs',               icon: '📐', description: 'Standard operating procedures',     agent: { sources: ['Chat Logs', 'Obsidian'],      outputs: ['SOP Drafts', 'Obsidian'],     writeback: false } },
+      { id: 'skills',      label: 'Skills',             icon: '🧠', description: 'Team skill capture + training',     agent: { sources: ['Chat Logs', 'Obsidian'],      outputs: ['Skill Nodes', 'Obsidian'],    writeback: false } },
+      { id: 'people',      label: 'People',             icon: '👥', description: 'Team directory, roles, contacts',   agent: { sources: ['Sheets', 'Slack'],            outputs: ['People Log', 'Alerts'],       writeback: false } },
+      { id: 'agent-logs',  label: 'Agent Logs',         icon: '🤖', description: 'AI action history, audit trail',    agent: { sources: ['All Agents'],                outputs: ['Obsidian', 'Sheets'],         writeback: false } },
+      { id: 'decisions',   label: 'Decisions',          icon: '⚖️', description: 'Key decisions + rationale log',     agent: { sources: ['Chat', 'Obsidian'],           outputs: ['Decision Log', 'Simon'],      writeback: false } },
+      { id: 'follow-ups',  label: 'Follow Ups',         icon: '🔔', description: 'Pending items + reminders',         agent: { sources: ['Chat', 'Alerts'],             outputs: ['Slack', 'Email'],             writeback: false } },
+    ],
 
     agentAnalysis: 'Protein Crunch Berry SKU-042 is tracking 23% below forecast for the week ending Jun 14. At current velocity, you will be short ~840 units against open SO-10482 (retailer: Outdoor World). Recommend creating a supplemental MO or negotiating partial fulfillment window. Raw whey protein stock is at 78% of reorder point — a PO to FoodGrade Ingredients Co. should be initiated within 48 hours to avoid production stoppage.',
 
@@ -939,6 +1192,10 @@ function app() {
         icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>' },
       { id: 'agents', label: 'AI Agents', sub: 'Configure + monitor', alerts: 0, roles: ['chris','larry'],
         icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>' },
+      { id: 'chat', label: 'Chris Chat', sub: 'AI assistant · logged', alerts: 0, roles: ['chris'],
+        icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>' },
+      { id: 'departments', label: 'Departments', sub: 'Intelligence structure', alerts: 0, roles: ['chris','larry'],
+        icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>' },
     ],
 
     agents: [
@@ -1257,20 +1514,21 @@ function app() {
       }
     },
 
-    // Acumatica API layer
+    // Acumatica API layer — all calls route through /api/acumatica proxy.
+    // Credentials live in backend .env only; never sent to or stored in the browser.
+    // Write-back is DISABLED (sandbox mode) until explicitly enabled server-side.
     async acuFetch(endpoint, method='GET', body=null) {
-      const base = this.settings.acuEndpoint;
       const opts = {
-        method, credentials: 'include',
+        method,
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       };
       if (body) opts.body = JSON.stringify(body);
       try {
-        const r = await fetch(base + endpoint, opts);
+        const r = await fetch('/api/acumatica' + endpoint, opts);
         if (!r.ok) throw new Error(`ACU ${r.status}`);
         return await r.json();
       } catch(e) {
-        this.toast('Acumatica: ' + e.message, 'error');
+        this.toast('Acumatica proxy: ' + e.message, 'error');
         this.acuStatus = 'error';
         return null;
       }
@@ -1375,8 +1633,96 @@ function app() {
       this.showNotif = false;
     },
 
+    // Chat: sends to /api/chat — never calls OpenAI/Claude directly from the browser
+    async sendChat() {
+      if (!this.chatInput.trim() || this.chatLoading) return;
+      const content = this.chatInput.trim();
+      this.chatInput = '';
+      const userMsg = {
+        id: Date.now(),
+        role: 'user',
+        content,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        dept: this.chatMeta.dept || '',
+        source: 'Chris',
+        tags: [this.chatMeta.dept, this.chatMeta.urgency !== 'normal' ? this.chatMeta.urgency : null, this.chatMeta.followUp ? 'follow-up' : null].filter(Boolean),
+      };
+      this.chatMessages.push(userMsg);
+      this.chatLoading = true;
+      this.$nextTick(() => { const el = this.$refs.chatScroll; if (el) el.scrollTop = el.scrollHeight; });
+      this.logConversation(userMsg);
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: content,
+            department: this.chatMeta.dept,
+            urgency: this.chatMeta.urgency,
+            followUp: this.chatMeta.followUp,
+            person: 'chris',
+            session: this.chatSessionId,
+            history: this.chatMessages.slice(-12).map(m => ({ role: m.role, content: m.content })),
+          }),
+        });
+        const data = await res.json();
+        const botMsg = {
+          id: Date.now() + 1,
+          role: 'assistant',
+          content: data.reply || data.message || '(empty response from backend)',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          source: data.source || 'backend',
+          tags: data.tags || [],
+        };
+        this.chatMessages.push(botMsg);
+        this.logConversation(botMsg);
+      } catch(e) {
+        this.chatMessages.push({
+          id: Date.now() + 1,
+          role: 'assistant',
+          content: 'Backend unavailable — make sure /api/chat is running. (' + e.message + ')',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          source: 'error',
+          tags: ['error'],
+        });
+      } finally {
+        this.chatLoading = false;
+        this.$nextTick(() => { const el = this.$refs.chatScroll; if (el) el.scrollTop = el.scrollHeight; });
+      }
+    },
+
+    // Silently logs every message to /api/log/conversation — non-blocking
+    async logConversation(msg) {
+      try {
+        await fetch('/api/log/conversation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...msg, session: this.chatSessionId, meta: this.chatMeta }),
+        });
+      } catch(_) { /* silent — logging must never break chat */ }
+    },
+
+    // Sends session context to /api/log/obsidian for vault persistence
+    async logToObsidian(type) {
+      const typeMap = { raw: ['💾','Raw Chat'], summary: ['📋','Summary'], actions: ['✅','Action Items'], sop: ['📐','SOP Candidates'], skills: ['🧠','Skill Candidates'], deptTags: ['🏷️','Dept Tags'] };
+      const [icon, label] = typeMap[type] || ['📝', type];
+      if (this.chatMessages.length === 0) { this.toast('No messages to log yet', 'warning'); return; }
+      try {
+        const res = await fetch('/api/log/obsidian', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type, messages: this.chatMessages, meta: this.chatMeta, session: this.chatSessionId, timestamp: new Date().toISOString() }),
+        });
+        if (!res.ok) throw new Error(res.status);
+        this.obsidianLogs.unshift({ id: Date.now(), icon, label: label + ' saved', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+        this.toast(icon + ' ' + label + ' saved to Obsidian', 'success');
+      } catch(e) {
+        this.toast('Obsidian backend unavailable (' + e.message + ')', 'error');
+      }
+    },
+
     saveSettings() {
-      this.toast('Settings saved', 'success');
+      this.toast('Preferences saved', 'success');
       this.showSettings = false;
     },
 
