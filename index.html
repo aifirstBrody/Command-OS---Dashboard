@@ -5,1741 +5,1277 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Peak Refuel — Command OS</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Barlow+Condensed:wght@600;700;800;900&display=swap" rel="stylesheet"/>
 <script>
 tailwind.config = {
-  theme: {
-    extend: {
-      colors: {
-        brand: {
-          orange: '#FF671F',
-          'deep-orange': '#D6562B',
-          green: '#ACBF37',
-          black: '#231F20',
-          'off-white': '#E9E9E9',
-          white: '#FFFFFF',
-        }
-      },
-      fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-        display: ['"Barlow Condensed"', 'sans-serif'],
-      }
+  theme: { extend: {
+    colors: {
+      brand: { orange:'#FF671F','deep-orange':'#D6562B',green:'#ACBF37',black:'#231F20','off-white':'#E9E9E9' }
+    },
+    fontFamily: {
+      sans: ['Inter','system-ui','sans-serif'],
+      display: ['"Barlow Condensed"','sans-serif'],
     }
-  }
+  }}
 }
 </script>
 <style>
-  :root {
-    --orange: #FF671F;
-    --deep-orange: #D6562B;
-    --green: #ACBF37;
-    --black: #231F20;
-    --off-white: #E9E9E9;
-  }
-  * { box-sizing: border-box; }
-  body { background: #1a1715; color: #E9E9E9; font-family: 'Inter', sans-serif; }
-  .font-display { font-family: 'Barlow Condensed', sans-serif; }
-
-  /* Sidebar */
-  .sidebar { width: 240px; min-height: 100vh; background: #231F20; border-right: 1px solid rgba(255,103,31,0.15); transition: transform 0.3s; }
-  @media(max-width:768px) {
-    .sidebar { position: fixed; z-index: 50; transform: translateX(-100%); }
-    .sidebar.open { transform: translateX(0); }
-    .main-content { margin-left: 0 !important; }
-  }
-  .main-content { margin-left: 240px; }
-
-  /* Nav items */
-  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 8px; cursor: pointer; transition: all 0.15s; font-size: 13px; font-weight: 500; color: #9a9491; margin: 2px 8px; }
-  .nav-item:hover { background: rgba(255,103,31,0.1); color: #E9E9E9; }
-  .nav-item.active { background: linear-gradient(135deg, rgba(255,103,31,0.25), rgba(214,86,43,0.15)); color: #FF671F; border-left: 2px solid #FF671F; }
-  .nav-item .icon { width: 20px; height: 20px; flex-shrink: 0; }
-
-  /* Cards */
-  .card { background: #2a2522; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; }
-  .card-glow { box-shadow: 0 0 0 1px rgba(255,103,31,0.2), 0 4px 24px rgba(0,0,0,0.4); }
-
-  /* Status badges */
-  .badge-red { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
-  .badge-yellow { background: rgba(234,179,8,0.15); color: #fbbf24; border: 1px solid rgba(234,179,8,0.3); border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
-  .badge-green { background: rgba(172,191,55,0.15); color: #ACBF37; border: 1px solid rgba(172,191,55,0.3); border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
-  .badge-orange { background: rgba(255,103,31,0.15); color: #FF671F; border: 1px solid rgba(255,103,31,0.3); border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
-  .badge-gray { background: rgba(255,255,255,0.07); color: #9a9491; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
-
-  /* Alert rows */
-  .alert-row { border-left: 3px solid transparent; padding: 12px 16px; margin-bottom: 2px; border-radius: 0 8px 8px 0; transition: background 0.15s; cursor: pointer; }
-  .alert-row:hover { background: rgba(255,255,255,0.03); }
-  .alert-row.critical { border-left-color: #ef4444; }
-  .alert-row.warning { border-left-color: #fbbf24; }
-  .alert-row.ok { border-left-color: #ACBF37; }
-  .alert-row.info { border-left-color: #FF671F; }
-
-  /* Metric boxes */
-  .metric-box { background: linear-gradient(135deg, #2e2926 0%, #26211f 100%); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 16px; }
-  .metric-val { font-family: 'Barlow Condensed', sans-serif; font-size: 36px; font-weight: 800; line-height: 1; }
-
-  /* Progress bar */
-  .progress-track { height: 6px; background: rgba(255,255,255,0.08); border-radius: 99px; overflow: hidden; }
-  .progress-fill { height: 100%; border-radius: 99px; transition: width 0.5s ease; }
-
-  /* Mountain logo */
-  .logo-peak svg { filter: drop-shadow(0 0 8px rgba(255,103,31,0.4)); }
-
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgba(255,103,31,0.3); border-radius: 99px; }
-
-  /* Table */
-  .data-table th { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #6b6460; padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); }
-  .data-table td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.04); }
-  .data-table tr:last-child td { border-bottom: none; }
-  .data-table tr:hover td { background: rgba(255,255,255,0.02); }
-
-  /* Pulse dot */
-  @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.4)} }
-  .pulse-dot { width:8px;height:8px;border-radius:50%;animation: pulse-dot 2s infinite; }
-
-  /* Tabs */
-  .tab-btn { padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; color: #6b6460; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; }
-  .tab-btn.active { background: rgba(255,103,31,0.15); color: #FF671F; border-color: rgba(255,103,31,0.3); }
-  .tab-btn:hover:not(.active) { color: #E9E9E9; background: rgba(255,255,255,0.04); }
-
-  /* Morning brief glow */
-  .morning-glow { background: linear-gradient(135deg, rgba(172,191,55,0.08) 0%, rgba(255,103,31,0.05) 100%); border: 1px solid rgba(172,191,55,0.2); }
-
-  /* Chat bubble */
-  .agent-bubble { background: linear-gradient(135deg, rgba(255,103,31,0.1), rgba(214,86,43,0.08)); border: 1px solid rgba(255,103,31,0.2); border-radius: 12px; }
-
-  /* Overlay */
-  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 40; }
-
-  /* Distressed texture overlay on logo */
-  .distressed { position: relative; }
-  .distressed::after { content:''; position:absolute; inset:0; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.06'/%3E%3C/svg%3E"); opacity: 0.4; pointer-events: none; border-radius: inherit; }
-
-  /* Chart containers */
-  .chart-wrap { position: relative; }
-
-  /* Agent status */
-  .agent-card { background: #2a2522; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 14px; }
-
-  /* Mobile header */
-  .mobile-header { display: none; }
-  @media(max-width:768px) {
-    .mobile-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #231F20; border-bottom: 1px solid rgba(255,103,31,0.15); position: sticky; top: 0; z-index: 30; }
-  }
-
-  /* View panels */
-  .view-panel { display: none; }
-  .view-panel.active { display: block; }
-
-  /* Ingredient row */
-  .ingr-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; transition: background 0.1s; }
-  .ingr-row:hover { background: rgba(255,255,255,0.03); }
-
-  /* Role pill */
-  .role-pill { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 8px; border-radius: 99px; }
-
-  /* Chat panel */
-  .chat-user { background: linear-gradient(135deg, rgba(255,103,31,0.15), rgba(214,86,43,0.1)); border: 1px solid rgba(255,103,31,0.25); }
-  .chat-bot { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
-  .chat-scroll { scroll-behavior: smooth; }
-  @keyframes bounce-dot { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
-  .bounce-dot { animation: bounce-dot 1.2s infinite; }
-
-  /* Status card */
-  .status-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 12px 16px; }
-
-  /* Dept card */
-  .dept-card { background: #2a2522; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 16px; transition: border-color 0.15s; }
-  .dept-card:hover { border-color: rgba(255,103,31,0.2); }
+:root{--orange:#FF671F;--deep-orange:#D6562B;--green:#ACBF37;--bg:#0c0a09;--card:#1a1714;--border:rgba(255,255,255,0.08);}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;height:100%;overflow:hidden;}
+body{background:#0c0a09;color:#E9E9E9;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
+.font-display{font-family:'Barlow Condensed',sans-serif;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(255,103,31,0.3);border-radius:99px;}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,103,31,0.5);}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(1.4)}}
+.animate-pulse-dot{animation:pulse-dot 2s ease-in-out infinite;}
+@keyframes fade-up{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.animate-fade-up{animation:fade-up 0.45s ease-out both;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.animate-spin{animation:spin 1s linear infinite;}
+@keyframes bounce-dot{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+.bounce-dot{animation:bounce-dot 1.2s ease-in-out infinite;}
+.sidebar-bg{background:linear-gradient(180deg,#131110 0%,#0f0d0b 100%);border-right:1px solid rgba(255,255,255,0.06);}
+.command-bar{background:rgba(12,10,9,0.9);backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,0.07);}
+.chat-dock{background:rgba(13,11,9,0.97);backdrop-filter:blur(16px);border-left:1px solid rgba(255,255,255,0.07);}
+.card{background:#1a1714;border:1px solid rgba(255,255,255,0.08);border-radius:12px;}
+.card-hover:hover{border-color:rgba(255,103,31,0.25);box-shadow:0 4px 20px rgba(0,0,0,0.4);}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:8px;cursor:pointer;transition:all 0.15s;font-size:13px;font-weight:500;color:#9a9491;margin:1px 8px;border:1px solid transparent;}
+.nav-item:hover{background:rgba(255,103,31,0.08);color:#E9E9E9;}
+.nav-item.active{background:linear-gradient(135deg,rgba(255,103,31,0.18),rgba(214,86,43,0.1));color:#FF671F;border-color:rgba(255,103,31,0.2);}
+.btn{display:inline-flex;align-items:center;justify-content:center;border-radius:8px;font-size:13px;font-weight:600;transition:all 0.15s;cursor:pointer;border:none;outline:none;}
+.btn-primary{background:#FF671F;color:white;padding:7px 16px;}
+.btn-primary:hover{background:#D6562B;}
+.btn-outline{background:transparent;color:#FF671F;padding:7px 16px;border:1px solid rgba(255,103,31,0.4);}
+.btn-outline:hover{background:rgba(255,103,31,0.1);}
+.btn-ghost{background:transparent;color:#9a9491;padding:7px 8px;}
+.btn-ghost:hover{background:rgba(255,255,255,0.06);color:#E9E9E9;}
+.btn-icon{width:34px;height:34px;padding:0;border-radius:8px;}
+.btn:disabled{opacity:0.4;cursor:not-allowed;}
+.badge{display:inline-flex;align-items:center;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;}
+.badge-red{background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3);}
+.badge-yellow{background:rgba(234,179,8,0.15);color:#fbbf24;border:1px solid rgba(234,179,8,0.3);}
+.badge-green{background:rgba(172,191,55,0.15);color:#ACBF37;border:1px solid rgba(172,191,55,0.3);}
+.badge-orange{background:rgba(255,103,31,0.15);color:#FF671F;border:1px solid rgba(255,103,31,0.3);}
+.badge-gray{background:rgba(255,255,255,0.07);color:#9a9491;border:1px solid rgba(255,255,255,0.1);}
+.alert-critical{border-left:3px solid #ef4444;}
+.alert-warning{border-left:3px solid #fbbf24;}
+.alert-ok{border-left:3px solid #ACBF37;}
+.alert-info{border-left:3px solid #FF671F;}
+.metric-val{font-family:'Barlow Condensed',sans-serif;font-size:2.4rem;font-weight:800;line-height:1;}
+.progress-track{height:4px;background:rgba(255,255,255,0.07);border-radius:99px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:99px;}
+.section-q{font-family:ui-monospace,monospace;font-size:0.67rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#FF671F;}
+.drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100;backdrop-filter:blur(4px);}
+.drawer-panel{position:fixed;right:0;top:0;height:100%;width:440px;max-width:95vw;background:#1a1714;border-left:1px solid rgba(255,255,255,0.08);z-index:101;display:flex;flex-direction:column;box-shadow:-8px 0 40px rgba(0,0,0,0.5);}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;backdrop-filter:blur(4px);}
+.modal{position:fixed;inset:0;z-index:101;display:flex;align-items:center;justify-content:center;padding:16px;}
+input,select,textarea{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#E9E9E9;border-radius:8px;font-family:'Inter',sans-serif;outline:none;}
+input:focus,textarea:focus,select:focus{border-color:rgba(255,103,31,0.45);}
+select option{background:#1a1714;}
+.tab{padding:6px 14px;border-radius:8px;font-size:12px;font-weight:500;color:#9a9491;cursor:pointer;border:1px solid transparent;transition:all 0.15s;}
+.tab:hover{color:#E9E9E9;background:rgba(255,255,255,0.04);}
+.tab.active{background:rgba(255,103,31,0.15);color:#FF671F;border-color:rgba(255,103,31,0.3);}
 </style>
 </head>
-<body x-data="app()" x-init="init()">
+<body>
+<div id="root"></div>
 
-<!-- Mobile Overlay -->
-<div class="overlay" x-show="sidebarOpen" @click="sidebarOpen=false" x-transition:enter="transition-opacity duration-200" x-transition:leave="transition-opacity duration-200" style="display:none"></div>
+<script type="importmap">
+{
+  "imports": {
+    "react":            "https://esm.sh/react@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "htm/react":        "https://esm.sh/htm@3.1.1/react"
+  }
+}
+</script>
 
-<!-- Mobile Header -->
-<div class="mobile-header">
-  <button @click="sidebarOpen=true" class="text-brand-off-white p-1">
-    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-  </button>
-  <div class="flex items-center gap-2">
-    <svg width="22" height="18" viewBox="0 0 44 36" fill="none">
-      <path d="M22 2L4 34h36L22 2z" fill="#FF671F" stroke="#D6562B" stroke-width="1.5"/>
-      <path d="M14 34L22 18l8 16" fill="#D6562B"/>
-    </svg>
-    <span class="font-display text-sm font-bold tracking-widest text-brand-off-white">PEAK REFUEL</span>
-  </div>
-  <div class="flex items-center gap-2">
-    <span class="pulse-dot" :class="{'bg-brand-green': acuStatus==='connected','bg-yellow-400': acuStatus==='syncing','bg-red-500': acuStatus==='error'}"></span>
-    <button @click="showNotif=!showNotif" class="relative p-1">
-      <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" class="text-gray-400"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-      <span class="absolute top-0 right-0 w-4 h-4 bg-brand-orange rounded-full text-white text-xs flex items-center justify-center font-bold" x-text="alertCount" x-show="alertCount>0"></span>
-    </button>
-  </div>
-</div>
+<script type="module">
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createRoot } from 'react-dom/client';
+import { html } from 'htm/react';
 
-<!-- Layout -->
-<div class="flex">
+/* ═══════════════════════════════════════════════════════════════════
+   DESIGN TOKENS & MOCK DATA
+═══════════════════════════════════════════════════════════════════ */
 
-  <!-- SIDEBAR -->
-  <aside class="sidebar flex flex-col" :class="{'open': sidebarOpen}">
-    <!-- Logo -->
-    <div class="p-5 border-b border-white/5">
-      <div class="flex items-center gap-3 distressed">
-        <svg width="42" height="34" viewBox="0 0 44 36" fill="none" class="flex-shrink-0">
+const SECTIONS = [
+  { id:'executive',      number:1, title:'Executive Command',       question:'What is happening now?',         icon:'⚡' },
+  { id:'departments',    number:2, title:'Department Intelligence',  question:'Where are the teams?',           icon:'🏛' },
+  { id:'interview',      number:3, title:'Employee Interview',       question:'What are employees saying?',     icon:'💬' },
+  { id:'painpoints',     number:4, title:'Pain Point Discovery',     question:'What is slowing us down?',       icon:'⚠' },
+  { id:'training',       number:5, title:'Training Gaps',            question:'What do we need to learn?',      icon:'🎓' },
+  { id:'recommendations',number:6, title:'Recommendations',          question:'What does Rocky recommend?',     icon:'💡' },
+  { id:'obsidian',       number:7, title:'Obsidian Brain',           question:'What changed in the Peak Brain?',icon:'🧠' },
+  { id:'system',         number:8, title:'System Status',            question:'Are all systems operational?',   icon:'🖥' },
+];
+
+const AGENTS = [
+  { id:'rocky',   name:'Rocky Agent',   status:'running', lastAction:'Interviewing team...' },
+  { id:'simon',   name:'Simon Archive', status:'idle',    lastAction:'Last archived: Jun 13' },
+  { id:'reorder', name:'Reorder Watch', status:'running', lastAction:'Monitoring 3 SKUs...' },
+  { id:'morning', name:'Morning Brief', status:'idle',    lastAction:'Scheduled 6:00 AM' },
+];
+
+const KPIS = [
+  { label:'Active SOs',  value:'24',      trend:+12,  color:'text-white' },
+  { label:'Open MOs',    value:'6',       trend:-8,   color:'text-[#FF671F]' },
+  { label:'Avg Yield',   value:'91.4%',   trend:+2.1, color:'text-[#ACBF37]' },
+  { label:'ATS Units',   value:'18,240',  trend:-5.3, color:'text-white' },
+];
+
+const LIVE_ALERTS = [
+  { id:1, severity:'critical', title:'SKU-042 Forecast Gap', detail:'Protein Crunch Berry -23% vs forecast. SO-10482 at risk.', badge:'CRITICAL', badgeColor:'badge-red', time:'4m ago' },
+  { id:2, severity:'critical', title:'Low Whey Protein Stock', detail:'On hand: 840 lbs. Reorder: 1,200 lbs. 2 runs at risk.', badge:'CRITICAL', badgeColor:'badge-red', time:'12m ago' },
+  { id:3, severity:'warning',  title:'MO-20443 BLOCKED', detail:'Maltodextrin insufficient. Run scheduled Jun 10.', badge:'BLOCKED', badgeColor:'badge-yellow', time:'28m ago' },
+  { id:4, severity:'warning',  title:'Yield Drop — SKU-017', detail:'Last 3 batches avg 87.2% vs 92% target.', badge:'WARNING', badgeColor:'badge-yellow', time:'1h ago' },
+  { id:5, severity:'info',     title:'New SO Received', detail:'SO-10489 — Summit Sports. $14,200 order.', badge:'NEW', badgeColor:'badge-orange', time:'2h ago' },
+  { id:6, severity:'ok',       title:'MO-20440 Complete', detail:'Chocolate Fudge run complete. 4,200 units added.', badge:'DONE', badgeColor:'badge-green', time:'3h ago' },
+];
+
+const DEPARTMENTS = [
+  { id:'executive',   label:'Executive',          icon:'👑', description:'Leadership decisions & executive oversight',     openItems:3, sources:['Acumatica','Alerts'],      outputs:['Morning Brief','Slack'] },
+  { id:'finance-ar',  label:'Finance AR',         icon:'💰', description:'AR, collections, cash flow management',          openItems:5, sources:['Acumatica','Sheets'],      outputs:['AR Report','Alerts'] },
+  { id:'production',  label:'Production',         icon:'🏭', description:'Manufacturing orders, runs, yield tracking',     openItems:8, sources:['Acumatica','Chad Sheets'], outputs:['Yield Log','Blocks'] },
+  { id:'inventory',   label:'Inventory',          icon:'📦', description:'SKU levels, ATS, and reorder management',        openItems:4, sources:['Acumatica'],              outputs:['Reorder Alerts','PO Drafts'] },
+  { id:'sales',       label:'Sales',              icon:'📈', description:'Sales orders, forecast, retailer signals',       openItems:6, sources:['Acumatica','CRM'],         outputs:['Forecast Alerts','SO Status'] },
+  { id:'marketing',   label:'Marketing',          icon:'📣', description:'Campaigns, brand, product launches',             openItems:2, sources:['Sheets','Slack'],          outputs:['Campaign Log','Obsidian'] },
+  { id:'vendors',     label:'Vendors',            icon:'🤝', description:'Supplier contacts and PO tracking',              openItems:3, sources:['Acumatica','Email'],        outputs:['PO Status','Alerts'] },
+  { id:'shepherds',   label:'Shepherds Receipts', icon:'🧾', description:'Receipt capture and routing to Acumatica',       openItems:7, sources:['Receipt Form','Sheets'],   outputs:['Acumatica','Obsidian'] },
+  { id:'sops',        label:'SOPs',               icon:'📐', description:'Standard operating procedures library',          openItems:4, sources:['Chat Logs','Obsidian'],    outputs:['SOP Drafts','Obsidian'] },
+  { id:'skills',      label:'Skills',             icon:'🧠', description:'Team skill capture and training knowledge',       openItems:6, sources:['Chat Logs','Obsidian'],    outputs:['Skill Nodes','Obsidian'] },
+  { id:'people',      label:'People',             icon:'👥', description:'Team directory, roles, and contact info',         openItems:1, sources:['Sheets','Slack'],          outputs:['People Log','Alerts'] },
+  { id:'agent-logs',  label:'Agent Logs',         icon:'🤖', description:'AI action history and audit trail',              openItems:12,sources:['All Agents'],              outputs:['Obsidian','Sheets'] },
+  { id:'decisions',   label:'Decisions',          icon:'⚖️', description:'Key decisions, rationale, and outcomes',         openItems:2, sources:['Chat','Obsidian'],          outputs:['Decision Log','Simon'] },
+  { id:'follow-ups',  label:'Follow Ups',         icon:'🔔', description:'Pending items and outstanding reminders',        openItems:9, sources:['Chat','Alerts'],            outputs:['Slack','Email'] },
+];
+
+const PAIN_POINTS = [
+  { id:'pp1', title:'Manual receipt entry duplication',          dept:'Finance AR',  severity:'high',     date:'Jun 10', description:'Drivers submitting receipts via multiple channels. Same receipt often entered twice in Acumatica.', detail:'Root cause: No single-entry point. Proposed fix: Rocky receipt form with auto-dedup before Acumatica write.' },
+  { id:'pp2', title:'Vanilla Cream yield consistently below target', dept:'Production', severity:'critical', date:'Jun 8',  description:'Last 6 batches at 87.2% vs 92% target. No documented root cause yet.', detail:'Chad suspects mixing parameter drift. Need to document current process and compare to original SOP.' },
+  { id:'pp3', title:'No real-time inventory visibility for sales',   dept:'Sales',      severity:'high',     date:'Jun 7',  description:'Sales team checking Acumatica manually 2x daily. Can\'t quote accurate ATS without delay.', detail:'Fix: surface live Acumatica inventory through this dashboard. Already designed — needs backend proxy.' },
+  { id:'pp4', title:'Vendor lead times not tracked in system',      dept:'Vendors',    severity:'medium',   date:'Jun 6',  description:'Lead time estimates exist only in Larry\'s head and an old spreadsheet.', detail:'Proposed: Add lead time field to vendor records in Acumatica. Rocky can track against PO history.' },
+  { id:'pp5', title:'Onboarding process undocumented',             dept:'People',     severity:'high',     date:'Jun 5',  description:'No written onboarding checklist. Each new hire gets ad-hoc walkthrough.', detail:'SOP candidate: capture via Rocky interview with Larry and Chad. Draft into Obsidian template.' },
+  { id:'pp6', title:'Morning brief data arrives 2hr late',         dept:'Executive',  severity:'low',      date:'Jun 4',  description:'Acumatica overnight batch doesn\'t complete until 8 AM. Brief is delayed.', detail:'Fix: trigger brief off Acumatica webhook or add 6:30 AM fallback with prior-day close data.' },
+];
+
+const TRAINING_GAPS = [
+  { id:'tg1', skill:'Acumatica PO workflow',         dept:'Production',         gap:'critical', action:'Hands-on Acumatica training session',              assignee:'Chad L.' },
+  { id:'tg2', skill:'Yield calculation spreadsheet',  dept:'Production',         gap:'moderate', action:'Document current process, create training video',  assignee:'Chad L.' },
+  { id:'tg3', skill:'Sales order entry in Acumatica', dept:'Sales',              gap:'moderate', action:'Create step-by-step SOP with screenshots',         assignee:'Sales Team' },
+  { id:'tg4', skill:'Receipt photo capture SOP',      dept:'Shepherds Receipts', gap:'critical', action:'Write 1-page SOP, laminate in every vehicle',      assignee:'All Drivers' },
+  { id:'tg5', skill:'Inventory reorder triggers',     dept:'Inventory',          gap:'critical', action:'Larry to configure Acumatica alerts + Rocky watch', assignee:'Larry M.' },
+  { id:'tg6', skill:'Slack notification routing',     dept:'All',                gap:'minor',    action:'Post routing guide to #team-ops channel',          assignee:'All Staff' },
+  { id:'tg7', skill:'MO status update procedure',     dept:'Production',         gap:'moderate', action:'Add to daily Chad briefing checklist',             assignee:'Chad L.' },
+  { id:'tg8', skill:'Vendor contact management',      dept:'Vendors',            gap:'moderate', action:'Migrate spreadsheet to Acumatica vendor records',  assignee:'Larry M.' },
+];
+
+const RECOMMENDATIONS = [
+  { id:'r1', title:'Create supplemental MO for SKU-042',              dept:'Production', urgency:'Critical', needsApproval:true,  desc:'Protein Crunch Berry tracking -23% vs forecast. SO-10482 needs 840 units. Draft MO-20448 for approval.',        status:'pending' },
+  { id:'r2', title:'Initiate Whey Protein PO before price spike',     dept:'Inventory',  urgency:'High',     needsApproval:true,  desc:'CBOT futures up 4.2%. Current stock at 70% of reorder. Buy window closing. Draft PO to FoodGrade Ingr. Co.',       status:'pending' },
+  { id:'r3', title:'Document Vanilla Cream mixing SOP',               dept:'SOPs',       urgency:'High',     needsApproval:false, desc:'6 consecutive batches below 92% yield. No current SOP. Rocky will interview Chad and draft Obsidian SOP node.',    status:'pending' },
+  { id:'r4', title:'Schedule Acumatica training for Chad',            dept:'Training',   urgency:'High',     needsApproval:false, desc:'Critical gap in PO workflow knowledge. Rocky to coordinate with Chad\'s schedule and build a focused session.',   status:'pending' },
+  { id:'r5', title:'Set up automated reorder triggers in Acumatica',  dept:'Inventory',  urgency:'High',     needsApproval:true,  desc:'3 ingredients currently below reorder point with no automated alert. Larry to configure — Rocky will verify.',     status:'pending' },
+  { id:'r6', title:'Archive last 30 days Rocky chats to Obsidian',    dept:'Agent Logs', urgency:'Low',      needsApproval:false, desc:'Simon Archive is configured. Triggering bulk export will create searchable knowledge base in the Peak Brain vault.', status:'pending' },
+];
+
+const OBSIDIAN_ENTRIES = [
+  { id:'o1', icon:'📐', category:'SOP',       title:'New SOP Draft: Vanilla Cream Mixing Parameters', date:'Jun 13', time:'10:24 AM', color:'badge-orange' },
+  { id:'o2', icon:'🧠', category:'Skill',     title:'Skill Node: Chad — Acumatica MO Entry',          date:'Jun 13', time:'9:15 AM',  color:'badge-green' },
+  { id:'o3', icon:'⚖️', category:'Decision',  title:'Decision: Approve supplemental MO-20445',         date:'Jun 12', time:'4:30 PM',  color:'badge-yellow' },
+  { id:'o4', icon:'📋', category:'Summary',   title:'Summary: Rocky Chat — Production Team Jun 8',     date:'Jun 12', time:'2:00 PM',  color:'badge-gray' },
+  { id:'o5', icon:'🔔', category:'Follow-up', title:'Follow-up: Larry to verify maltodextrin PO',      date:'Jun 12', time:'11:00 AM', color:'badge-yellow' },
+  { id:'o6', icon:'💾', category:'Raw Chat',  title:'Raw Chat: Chris — Inventory Review Jun 11',       date:'Jun 11', time:'6:45 PM',  color:'badge-gray' },
+  { id:'o7', icon:'📐', category:'SOP',       title:'SOP Candidate: Reorder Threshold Review Process', date:'Jun 11', time:'3:20 PM',  color:'badge-orange' },
+  { id:'o8', icon:'🏷', category:'Dept Tags', title:'Dept Tags: Finance AR — Receipt Duplication',     date:'Jun 10', time:'1:00 PM',  color:'badge-gray' },
+];
+
+const SYSTEM_STATUS = [
+  { key:'acumatica', label:'Acumatica Connection', detail:'Proxied via /api/acumatica · Sandbox mode — no live writes', status:'warn', statusLabel:'Sandbox', icon:'🔌' },
+  { key:'proxy',     label:'API Proxy',            detail:'Backend /api/proxy — all ERP calls routed server-side',     status:'ok',   statusLabel:'Active',   icon:'⚡' },
+  { key:'sheets',    label:'Google Sheets',        detail:'Ops log spreadsheet — auto-sync on write events',           status:'ok',   statusLabel:'Connected', icon:'📊' },
+  { key:'obsidian',  label:'Obsidian Bridge',      detail:'Set OBSIDIAN_VAULT_PATH in backend .env to activate',       status:'warn', statusLabel:'Config needed', icon:'📓' },
+  { key:'rocky',     label:'Rocky Agent',          detail:'Interview + discovery agent — config ready, not yet live',  status:'warn', statusLabel:'Stub only', icon:'🤖' },
+  { key:'simon',     label:'Simon Archive',        detail:'Long-term decision & SOP archive — not yet active',         status:'warn', statusLabel:'Stub only', icon:'🗄' },
+];
+
+const DEPTS_FOR_SELECT = DEPARTMENTS.map(d => d.label);
+
+/* ═══════════════════════════════════════════════════════════════════
+   UTILITY COMPONENTS
+═══════════════════════════════════════════════════════════════════ */
+
+function PulseDot({ color = 'bg-[#ACBF37]' }) {
+  return html`<div class=${'w-2 h-2 rounded-full flex-shrink-0 animate-pulse-dot ' + color}></div>`;
+}
+
+function Badge({ children, variant = 'gray' }) {
+  return html`<span class=${'badge badge-' + variant}>${children}</span>`;
+}
+
+function SectionHeader({ question, title, description }) {
+  return html`
+    <div class="mb-6">
+      <div class="pl-3 border-l-2 border-[rgba(255,103,31,0.3)] mb-3">
+        <p class="section-q">${question}</p>
+      </div>
+      <h2 class="font-display text-3xl md:text-4xl font-black text-white leading-tight animate-fade-up">${title}</h2>
+      <p class="text-sm text-[#9a9491] mt-2 max-w-2xl">${description}</p>
+    </div>
+    <div class="h-px bg-[rgba(255,255,255,0.07)] mb-7"></div>
+  `;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SECTION 1: EXECUTIVE COMMAND
+═══════════════════════════════════════════════════════════════════ */
+
+function ExecutiveCommand() {
+  return html`
+    <div>
+      ${SectionHeader({ question:'What is happening now?', title:'Executive Command', description:'Live KPIs, active alerts, and agent activity across all Peak Refuel operations.' })}
+
+      <!-- KPI Row -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        ${KPIS.map(k => html`
+          <div key=${k.label} class="card card-hover p-4" style="background:linear-gradient(135deg,#1e1a17,#161310)">
+            <div class="text-xs text-[#9a9491] font-medium uppercase tracking-wider mb-2">${k.label}</div>
+            <div class=${'metric-val ' + k.color}>${k.value}</div>
+            <div class="flex items-center gap-1 mt-2">
+              <span class=${'text-xs font-semibold ' + (k.trend > 0 ? 'text-[#ACBF37]' : 'text-red-400')}>
+                ${k.trend > 0 ? '↑' : '↓'}${Math.abs(k.trend)}%
+              </span>
+              <span class="text-xs text-[#6b6460]">vs last wk</span>
+            </div>
+          </div>
+        `)}
+      </div>
+
+      <!-- Alerts + Agents -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <!-- Live Alerts -->
+        <div class="lg:col-span-2 card overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-[rgba(255,255,255,0.06)]">
+            <div class="flex items-center gap-2">
+              ${PulseDot({ color:'bg-red-500' })}
+              <span class="font-semibold text-sm">Live Alerts</span>
+            </div>
+            <span class="text-xs text-[#9a9491]">${LIVE_ALERTS.length} active</span>
+          </div>
+          <div class="divide-y divide-[rgba(255,255,255,0.04)] max-h-72 overflow-y-auto">
+            ${LIVE_ALERTS.map(a => html`
+              <div key=${a.id} class=${'px-4 py-3 hover:bg-[rgba(255,255,255,0.02)] transition-colors cursor-pointer ' + 'alert-' + a.severity}>
+                <div class="flex items-start gap-3">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span class="text-sm font-medium text-white">${a.title}</span>
+                      <span class=${'badge ' + a.badgeColor}>${a.badge}</span>
+                    </div>
+                    <div class="text-xs text-[#9a9491] mt-0.5">${a.detail}</div>
+                  </div>
+                  <span class="text-xs text-[#6b6460] flex-shrink-0">${a.time}</span>
+                </div>
+              </div>
+            `)}
+          </div>
+        </div>
+
+        <!-- Agent Status -->
+        <div class="card p-4">
+          <div class="font-semibold text-sm mb-3 flex items-center gap-2 text-white">
+            <span>🤖</span> AI Agents
+          </div>
+          <div class="space-y-2">
+            ${AGENTS.map(a => html`
+              <div key=${a.id} class="rounded-lg p-3" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)">
+                <div class="flex items-center justify-between mb-0.5">
+                  <span class="text-xs font-medium text-white">${a.name}</span>
+                  ${PulseDot({ color: a.status==='running' ? 'bg-[#ACBF37]' : a.status==='idle' ? 'bg-yellow-400' : 'bg-red-500' })}
+                </div>
+                <div class="text-xs text-[#9a9491]">${a.lastAction}</div>
+              </div>
+            `)}
+          </div>
+        </div>
+      </div>
+
+      <!-- Acumatica Quick Links -->
+      <div class="card p-4">
+        <div class="font-semibold text-sm mb-3 text-[#9a9491]">Acumatica Quick Access</div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+          ${[
+            {icon:'🏭',label:'Production Orders',sub:'Mfg → MOs'},
+            {icon:'📋',label:'Sales Orders',sub:'Sales → SOs'},
+            {icon:'📦',label:'Purchase Orders',sub:'Purchasing → POs'},
+            {icon:'📊',label:'Inventory',sub:'Stock → Items'},
+            {icon:'✅',label:'Item Receipts',sub:'PO Receipts'},
+            {icon:'📐',label:'Bill of Materials',sub:'Mfg → BOMs'},
+            {icon:'📈',label:'Reports',sub:'Analytics'},
+            {icon:'⚙️',label:'Work Centers',sub:'Capacity'},
+          ].map(l => html`
+            <button key=${l.label} class="flex items-center gap-2 p-3 rounded-lg text-left group transition-all"
+              style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06)"
+              onMouseEnter=${e => { e.currentTarget.style.borderColor='rgba(255,103,31,0.3)'; e.currentTarget.style.background='rgba(255,103,31,0.06)'; }}
+              onMouseLeave=${e => { e.currentTarget.style.borderColor='rgba(255,255,255,0.06)'; e.currentTarget.style.background='rgba(255,255,255,0.04)'; }}>
+              <span class="text-xl">${l.icon}</span>
+              <div>
+                <div class="text-xs font-medium text-white">${l.label}</div>
+                <div class="text-xs text-[#6b6460]">${l.sub}</div>
+              </div>
+            </button>
+          `)}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SECTION 2: DEPARTMENT INTELLIGENCE
+═══════════════════════════════════════════════════════════════════ */
+
+function DepartmentIntelligence() {
+  const [activeDept, setActiveDept] = useState(null);
+  const dept = activeDept ? DEPARTMENTS.find(d => d.id === activeDept) : null;
+
+  return html`
+    <div>
+      ${SectionHeader({ question:'Where are the teams?', title:'Department Intelligence', description:'15 department intelligence nodes. Click any tile to view current status, open items, and agent configuration.' })}
+
+      <!-- Dept tiles -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+        ${DEPARTMENTS.map(d => html`
+          <button key=${d.id}
+            class=${'card card-hover p-4 text-left transition-all ' + (activeDept === d.id ? 'border-[rgba(255,103,31,0.35)] bg-[rgba(255,103,31,0.04)]' : '')}
+            onClick=${() => setActiveDept(activeDept === d.id ? null : d.id)}>
+            <div class="text-2xl mb-2">${d.icon}</div>
+            <div class="font-semibold text-sm text-white leading-tight">${d.label}</div>
+            <div class="text-xs text-[#9a9491] mt-1 leading-snug">${d.description.slice(0,40)}…</div>
+            <div class="flex items-center justify-between mt-3">
+              <span class="text-[10px] text-[#9a9491]">${d.openItems} open</span>
+              <span class="text-[10px] text-[rgba(255,255,255,0.2)]">Stub ◎</span>
+            </div>
+          </button>
+        `)}
+      </div>
+
+      <!-- Expanded detail panel -->
+      ${dept && html`
+        <div class="mt-4 card p-5 animate-fade-up" style="border-color:rgba(255,103,31,0.2)">
+          <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center gap-3">
+              <span class="text-3xl">${dept.icon}</span>
+              <div>
+                <div class="font-display font-bold text-xl text-white">${dept.label}</div>
+                <div class="text-sm text-[#9a9491]">${dept.description}</div>
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-icon text-[#9a9491]" onClick=${() => setActiveDept(null)}>✕</button>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <div class="text-[10px] font-semibold uppercase tracking-widest text-[#6b6460] mb-2">Open Items</div>
+              <div class="metric-val text-[#FF671F] text-4xl">${dept.openItems}</div>
+            </div>
+            <div>
+              <div class="text-[10px] font-semibold uppercase tracking-widest text-[#6b6460] mb-2">Data Sources</div>
+              <div class="flex flex-wrap gap-1">${dept.sources.map(s => html`<span key=${s} class="badge badge-gray">${s}</span>`)}</div>
+            </div>
+            <div>
+              <div class="text-[10px] font-semibold uppercase tracking-widest text-[#6b6460] mb-2">Agent Outputs</div>
+              <div class="flex flex-wrap gap-1">${dept.outputs.map(o => html`<span key=${o} class="badge badge-orange">${o}</span>`)}</div>
+            </div>
+          </div>
+          <div class="mt-4 p-3 rounded-xl flex items-center gap-2" style="background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.2)">
+            <span class="text-yellow-400 text-sm">⚠</span>
+            <span class="text-xs text-yellow-400 font-medium">Write-back: <strong>DISABLED — Sandbox Mode</strong>. All agent configs are stubs. No autonomous actions active.</span>
+          </div>
+        </div>
+      `}
+    </div>
+  `;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SECTION 3: EMPLOYEE INTERVIEW
+═══════════════════════════════════════════════════════════════════ */
+
+function EmployeeInterview() {
+  const [msgs, setMsgs] = useState([{
+    id:'0', role:'assistant',
+    content:"Hi! I'm Rocky — Peak Refuel's operations assistant. I'm here to capture what the team knows, what's working, what isn't, and what we need to fix. What's on your mind today?",
+    time: new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),
+    source:'Rocky',
+  }]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [dept, setDept] = useState('');
+  const [urgency, setUrgency] = useState('normal');
+  const [followUp, setFollowUp] = useState(false);
+  const [logHistory, setLogHistory] = useState([]);
+  const scrollRef = useRef(null);
+  const sessionId = useRef('interview-' + Date.now());
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [msgs, loading]);
+
+  const send = async () => {
+    if (!input.trim() || loading) return;
+    const content = input.trim();
+    setInput('');
+    const userMsg = { id: Date.now().toString(), role:'user', content, time: new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}), dept: dept||undefined, tags:[dept,urgency!=='normal'?urgency:'',followUp?'follow-up':''].filter(Boolean) };
+    setMsgs(m => [...m, userMsg]);
+    setLoading(true);
+    fetch('/api/intake', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({...userMsg, session: sessionId.current, meta:{dept,urgency,followUp}}) }).catch(()=>{});
+    fetch('/api/log/conversation', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({...userMsg, session: sessionId.current}) }).catch(()=>{});
+    try {
+      const res = await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ message:content, department:dept, urgency, followUp, person:'employee', session: sessionId.current, history: msgs.slice(-8).map(m=>({role:m.role,content:m.content})) }) });
+      const data = await res.json();
+      const bot = { id:(Date.now()+1).toString(), role:'assistant', content: data.reply||data.message||'(no response)', time: new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}), source: data.source||'Rocky', tags: data.tags||[] };
+      setMsgs(m => [...m, bot]);
+      fetch('/api/log/conversation', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({...bot, session: sessionId.current}) }).catch(()=>{});
+    } catch {
+      setMsgs(m => [...m, { id:(Date.now()+1).toString(), role:'assistant', content:'Backend unavailable. Start /api/chat to enable live responses.', time: new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}), source:'error' }]);
+    } finally { setLoading(false); }
+  };
+
+  const logObsidian = async (type, label, emoji) => {
+    if (msgs.length <= 1) return;
+    try {
+      await fetch('/api/log/obsidian', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type, messages:msgs, meta:{dept,urgency,followUp}, session: sessionId.current, timestamp: new Date().toISOString() }) });
+      setLogHistory(h => [{ icon:emoji, label:`${label} saved`, time: new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) }, ...h]);
+    } catch {}
+  };
+
+  return html`
+    <div>
+      ${SectionHeader({ question:'What are employees saying?', title:'Employee Interview', description:'Rocky captures team insights, blockers, and knowledge. Every message is logged to the conversation archive and Obsidian vault.' })}
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- Chat -->
+        <div class="lg:col-span-2 card overflow-hidden flex flex-col" style="height:520px">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-[rgba(255,255,255,0.06)]">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm" style="background:rgba(255,103,31,0.12);border:1px solid rgba(255,103,31,0.22)">🤖</div>
+              <div>
+                <div class="text-sm font-semibold text-white">Rocky — Interview Mode</div>
+                <div class="text-[10px] text-[#9a9491]">via /api/intake · never calls AI directly</div>
+              </div>
+            </div>
+            <span class="badge badge-orange">Interview</span>
+          </div>
+          <div ref=${scrollRef} class="flex-1 overflow-y-auto p-4 space-y-3">
+            ${msgs.map(m => html`
+              <div key=${m.id} class=${'flex ' + (m.role==='user' ? 'justify-end' : 'justify-start')}>
+                <div style="max-width:82%">
+                  <div class=${'flex items-center gap-1.5 mb-1 ' + (m.role==='user' ? 'justify-end' : '')}>
+                    <span class="text-[10px] text-[#6b6460]">${m.time}</span>
+                    ${m.source && html`<span class="text-[10px] px-1.5 py-0.5 rounded-full text-[#9a9491]" style="background:rgba(255,255,255,0.05)">${m.source}</span>`}
+                  </div>
+                  <div class=${'px-3 py-2.5 rounded-xl text-sm leading-relaxed ' + (m.role==='user' ? 'rounded-tr-sm' : 'rounded-tl-sm')}
+                    style=${{ background: m.role==='user' ? 'linear-gradient(135deg,rgba(255,103,31,0.18),rgba(214,86,43,0.1))' : 'rgba(255,255,255,0.05)', border: `1px solid ${m.role==='user'?'rgba(255,103,31,0.25)':'rgba(255,255,255,0.07)'}` }}>
+                    ${m.content}
+                  </div>
+                  ${m.tags&&m.tags.length>0 && html`
+                    <div class=${'flex flex-wrap gap-1 mt-1 ' + (m.role==='user'?'justify-end':'')}>
+                      ${m.tags.map(t => html`<span key=${t} class="text-[9px] px-1.5 py-0.5 rounded-full text-[#6b6460]" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07)">${t}</span>`)}
+                    </div>
+                  `}
+                </div>
+              </div>
+            `)}
+            ${loading && html`
+              <div class="flex justify-start">
+                <div class="px-3 py-2.5 rounded-xl rounded-tl-sm" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.07)">
+                  <div class="flex gap-1">
+                    ${[0,150,300].map(d => html`<div key=${d} class="w-1.5 h-1.5 rounded-full bg-[#FF671F] bounce-dot" style=${{animationDelay:d+'ms'}}></div>`)}
+                  </div>
+                </div>
+              </div>
+            `}
+          </div>
+          <!-- Tag bar -->
+          <div class="px-4 py-2 border-t border-[rgba(255,255,255,0.06)]" style="background:rgba(0,0,0,0.15)">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-[10px] text-[#6b6460]">Tag:</span>
+              <select value=${dept} onChange=${e => setDept(e.target.value)} class="text-[10px] px-2 py-1 rounded-md text-[#9a9491]" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1)">
+                <option value="">Department…</option>
+                ${DEPTS_FOR_SELECT.map(d => html`<option key=${d} value=${d}>${d}</option>`)}
+              </select>
+              <select value=${urgency} onChange=${e => setUrgency(e.target.value)} class="text-[10px] px-2 py-1 rounded-md text-[#9a9491]" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1)">
+                <option value="normal">Normal</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </select>
+              <label class="flex items-center gap-1 text-[10px] text-[#9a9491] cursor-pointer">
+                <input type="checkbox" checked=${followUp} onChange=${e => setFollowUp(e.target.checked)} style="accent-color:#FF671F;width:12px;height:12px"/>
+                Follow-up
+              </label>
+            </div>
+          </div>
+          <!-- Input -->
+          <div class="px-4 py-3 border-t border-[rgba(255,255,255,0.06)] flex gap-2">
+            <textarea value=${input} rows="2" placeholder="Type your message… (Enter to send, Shift+Enter for new line)"
+              class="flex-1 resize-none px-3 py-2 text-sm rounded-xl"
+              style=${{ background:'rgba(255,255,255,0.06)', border:`1px solid ${input?'rgba(255,103,31,0.4)':'rgba(255,255,255,0.1)'}` }}
+              onChange=${e => setInput(e.target.value)}
+              onKeyDown=${e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();} }}
+            />
+            <button class="btn btn-primary rounded-xl px-4" disabled=${loading||!input.trim()} onClick=${send}>→</button>
+          </div>
+        </div>
+
+        <!-- Session + Obsidian panel -->
+        <div class="space-y-3">
+          <div class="card p-4">
+            <div class="font-semibold text-sm mb-3 text-white">Session Info</div>
+            <div class="space-y-2 text-xs text-[#9a9491]">
+              <div class="flex justify-between"><span>Messages</span><span class="text-white font-medium">${msgs.length}</span></div>
+              <div class="flex justify-between"><span>Department</span><span class="text-[#FF671F] font-medium">${dept||'Untagged'}</span></div>
+              <div class="flex justify-between"><span>Urgency</span><span class=${'font-medium capitalize ' + (urgency==='urgent'?'text-red-400':urgency==='high'?'text-yellow-400':'text-[#ACBF37]')}>${urgency}</span></div>
+              <div class="flex justify-between"><span>Follow-up</span><span class=${followUp?'text-yellow-400':'text-[#6b6460]'}>${followUp?'Yes':'No'}</span></div>
+            </div>
+            <button class="mt-3 w-full text-xs py-1.5 rounded-lg text-[#9a9491] hover:text-white transition-colors" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08)" onClick=${()=>{setMsgs(m=>[m[0]]);setLogHistory([]);}}>Clear Session</button>
+          </div>
+          <div class="card p-4">
+            <div class="font-semibold text-sm mb-3 text-white">📓 Obsidian Logging</div>
+            <div class="space-y-1.5">
+              ${[['raw','💾','Raw Chat'],['summary','📋','Summary'],['actions','✅','Action Items'],['sop','📐','SOP Candidates'],['skills','🧠','Skill Candidates'],['deptTags','🏷','Dept Tags']].map(([t,i,l]) => html`
+                <button key=${t} class="w-full text-left text-xs px-3 py-2 rounded-lg text-[#9a9491] hover:text-white transition-all" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)" onClick=${()=>logObsidian(t,l,i)}>${i} ${l}</button>
+              `)}
+            </div>
+          </div>
+          ${logHistory.length > 0 && html`
+            <div class="card p-4">
+              <div class="font-semibold text-sm mb-3 text-white">Recent Logs</div>
+              <div class="space-y-1.5">
+                ${logHistory.slice(0,5).map((l,i) => html`
+                  <div key=${i} class="flex items-center gap-1.5 text-xs">
+                    <span>${l.icon}</span><span class="flex-1 text-[#9a9491] truncate">${l.label}</span><span class="text-[#6b6460]">${l.time}</span>
+                  </div>
+                `)}
+              </div>
+            </div>
+          `}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SECTION 4: PAIN POINT DISCOVERY
+═══════════════════════════════════════════════════════════════════ */
+
+function PainPointDiscovery() {
+  const [filter, setFilter] = useState('all');
+  const [expanded, setExpanded] = useState(null);
+
+  const sevColor = s => ({ critical:'text-red-400', high:'text-yellow-400', medium:'text-[#FF671F]', low:'text-[#9a9491]' }[s] || 'text-[#9a9491]');
+  const sevBadge = s => ({ critical:'badge-red', high:'badge-yellow', medium:'badge-orange', low:'badge-gray' }[s] || 'badge-gray');
+  const sevDot = s => ({ critical:'bg-red-500', high:'bg-yellow-400', medium:'bg-[#FF671F]', low:'bg-[#9a9491]' }[s] || 'bg-[#9a9491]');
+
+  const filtered = filter === 'all' ? PAIN_POINTS : PAIN_POINTS.filter(p => p.severity === filter);
+
+  return html`
+    <div>
+      ${SectionHeader({ question:'What is slowing us down?', title:'Pain Point Discovery', description:'Friction points captured from team interviews and operational data. Click any item to expand root cause and proposed fix.' })}
+      <!-- Filter tabs -->
+      <div class="flex gap-2 mb-6 flex-wrap">
+        ${['all','critical','high','medium','low'].map(f => html`
+          <button key=${f} class=${'tab ' + (filter===f?'active':'')} onClick=${()=>setFilter(f)}>
+            ${f==='all'?'All Pain Points':f.charAt(0).toUpperCase()+f.slice(1)}
+            ${f!=='all' && html`<span class="ml-1.5 text-[10px]">${PAIN_POINTS.filter(p=>p.severity===f).length}</span>`}
+          </button>
+        `)}
+      </div>
+
+      <!-- Timeline -->
+      <div class="space-y-0">
+        ${filtered.map((pp, i) => html`
+          <div key=${pp.id} class="relative pl-8 pb-4">
+            <!-- Connector line -->
+            ${i < filtered.length - 1 && html`<div class="timeline-connector absolute" style="left:7px;top:24px;bottom:0;width:2px;background:rgba(255,255,255,0.07)"></div>`}
+            <!-- Dot -->
+            <div class=${'absolute left-0 top-1 w-4 h-4 rounded-full border-2 flex items-center justify-center ' + sevDot(pp.severity)} style="border-color:#0c0a09;box-shadow:0 0 0 2px rgba(255,255,255,0.08)"></div>
+
+            <button class="w-full card card-hover text-left p-4" onClick=${()=>setExpanded(expanded===pp.id?null:pp.id)}>
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap mb-1">
+                    <span class=${'text-sm font-semibold ' + sevColor(pp.severity)}>${pp.title}</span>
+                    <span class=${'badge ' + sevBadge(pp.severity)}>${pp.severity.toUpperCase()}</span>
+                    <span class="badge badge-gray">${pp.dept}</span>
+                  </div>
+                  <p class="text-xs text-[#9a9491]">${pp.description}</p>
+                </div>
+                <div class="text-right flex-shrink-0">
+                  <div class="text-xs text-[#6b6460]">${pp.date}</div>
+                  <div class=${'text-xs mt-1 ' + (expanded===pp.id ? 'text-[#FF671F]' : 'text-[#9a9491]')}>${expanded===pp.id ? '▲ Less' : '▼ Detail'}</div>
+                </div>
+              </div>
+              ${expanded === pp.id && html`
+                <div class="mt-3 pt-3 border-t border-[rgba(255,255,255,0.06)] text-xs text-[#9a9491] leading-relaxed animate-fade-up">
+                  <div class="flex items-start gap-2">
+                    <span class="text-[#FF671F] mt-0.5 flex-shrink-0">›</span>
+                    <span>${pp.detail}</span>
+                  </div>
+                </div>
+              `}
+            </button>
+          </div>
+        `)}
+      </div>
+    </div>
+  `;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SECTION 5: TRAINING GAPS
+═══════════════════════════════════════════════════════════════════ */
+
+function TrainingGaps() {
+  const [deptFilter, setDeptFilter] = useState('all');
+  const allDepts = ['all', ...new Set(TRAINING_GAPS.map(t => t.dept))];
+  const filtered = deptFilter === 'all' ? TRAINING_GAPS : TRAINING_GAPS.filter(t => t.dept === deptFilter);
+  const gapBadge = g => ({ critical:'badge-red', moderate:'badge-yellow', minor:'badge-gray' }[g] || 'badge-gray');
+  const gapIcon = g => ({ critical:'🔴', moderate:'🟡', minor:'⚪' }[g]);
+
+  return html`
+    <div>
+      ${SectionHeader({ question:'What do we need to learn?', title:'Training Gaps', description:'Skills and knowledge gaps identified through Rocky interviews and operational analysis. Prioritized by business impact.' })}
+      <!-- Dept filter -->
+      <div class="flex gap-2 mb-6 overflow-x-auto pb-1 flex-wrap">
+        ${allDepts.map(d => html`
+          <button key=${d} class=${'tab flex-shrink-0 ' + (deptFilter===d?'active':'')} onClick=${()=>setDeptFilter(d)}>
+            ${d === 'all' ? 'All Departments' : d}
+          </button>
+        `)}
+      </div>
+      <!-- Gap cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        ${filtered.map(t => html`
+          <div key=${t.id} class="card card-hover p-4">
+            <div class="flex items-start justify-between mb-2">
+              <span class="text-lg">${gapIcon(t.gap)}</span>
+              <span class=${'badge ' + gapBadge(t.gap)}>${t.gap.toUpperCase()}</span>
+            </div>
+            <div class="font-semibold text-sm text-white mb-1 leading-tight">${t.skill}</div>
+            <div class="badge badge-gray mb-3" style="display:inline-flex">${t.dept}</div>
+            <div class="text-xs text-[#9a9491] leading-relaxed mb-3">${t.action}</div>
+            <div class="flex items-center justify-between pt-2 border-t border-[rgba(255,255,255,0.06)]">
+              <span class="text-[10px] text-[#6b6460]">Assignee</span>
+              <span class="text-xs font-medium text-white">${t.assignee}</span>
+            </div>
+          </div>
+        `)}
+      </div>
+    </div>
+  `;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SECTION 6: RECOMMENDATION ENGINE
+═══════════════════════════════════════════════════════════════════ */
+
+function RecommendationEngine() {
+  const [recs, setRecs] = useState(RECOMMENDATIONS);
+  const pending = recs.filter(r => r.status === 'pending');
+
+  const handle = async (id, action) => {
+    setRecs(r => r.map(rec => rec.id === id ? { ...rec, status: action === 'approve' ? 'approved' : 'dismissed' } : rec));
+    fetch('/api/recommendations', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id, action }) }).catch(()=>{});
+  };
+
+  const urgBadge = u => ({ Critical:'badge-red', High:'badge-yellow', Medium:'badge-orange', Low:'badge-gray' }[u] || 'badge-gray');
+
+  return html`
+    <div>
+      ${SectionHeader({ question:'What does Rocky recommend?', title:'Recommendation Engine', description:"Rocky's suggested actions based on current operations data. Items requiring Chris approval are highlighted." })}
+      <!-- Pending count -->
+      <div class="flex items-center gap-4 mb-6 p-4 rounded-xl" style="background:rgba(255,103,31,0.06);border:1px solid rgba(255,103,31,0.18)">
+        <div class="metric-val text-[#FF671F] text-5xl">${pending.length}</div>
+        <div>
+          <div class="font-semibold text-white">Pending Recommendations</div>
+          <div class="text-sm text-[#9a9491]">${recs.filter(r=>r.needsApproval&&r.status==='pending').length} require Chris approval · ${recs.filter(r=>!r.needsApproval&&r.status==='pending').length} can proceed without approval</div>
+        </div>
+      </div>
+      <!-- Rec cards -->
+      <div class="space-y-3">
+        ${recs.map(r => html`
+          <div key=${r.id} class=${'card p-4 transition-all ' + (r.status==='approved' ? 'opacity-50' : r.status==='dismissed' ? 'opacity-30' : 'card-hover')}>
+            <div class="flex items-start gap-4">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap mb-1.5">
+                  <span class="font-semibold text-sm text-white">${r.title}</span>
+                  <span class=${'badge ' + urgBadge(r.urgency)}>${r.urgency}</span>
+                  <span class="badge badge-gray">${r.dept}</span>
+                  ${r.needsApproval && html`<span class="badge badge-orange">⚡ Needs Chris Approval</span>`}
+                  ${r.status === 'approved' && html`<span class="badge badge-green">✓ Approved</span>`}
+                  ${r.status === 'dismissed' && html`<span class="badge badge-gray">Dismissed</span>`}
+                </div>
+                <p class="text-xs text-[#9a9491] leading-relaxed">${r.desc}</p>
+              </div>
+              ${r.status === 'pending' && html`
+                <div class="flex flex-col gap-2 flex-shrink-0">
+                  <button class="btn btn-primary text-xs px-3 py-1.5 rounded-lg" onClick=${()=>handle(r.id,'approve')}>Approve</button>
+                  <button class="btn btn-ghost text-xs px-3 py-1.5 rounded-lg border border-[rgba(255,255,255,0.1)]" onClick=${()=>handle(r.id,'dismiss')}>Dismiss</button>
+                </div>
+              `}
+            </div>
+          </div>
+        `)}
+      </div>
+    </div>
+  `;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SECTION 7: OBSIDIAN BRAIN
+═══════════════════════════════════════════════════════════════════ */
+
+function ObsidianBrain() {
+  const [entries, setEntries] = useState(OBSIDIAN_ENTRIES);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const refresh = async () => {
+    setRefreshing(true);
+    try {
+      const data = await fetch('/api/obsidian/activity').then(r => r.json());
+      if (Array.isArray(data)) setEntries(data);
+    } catch {}
+    setTimeout(() => setRefreshing(false), 1200);
+  };
+
+  return html`
+    <div>
+      ${SectionHeader({ question:'What changed in the Peak Brain?', title:'Obsidian Brain Activity', description:'Recent vault changes — new SOPs, decisions, skill captures, and follow-ups. The living knowledge base of Peak Refuel.' })}
+      <div class="flex items-center justify-between mb-5">
+        <div class="text-sm text-[#9a9491]">${entries.length} recent entries</div>
+        <button class="btn btn-ghost text-xs px-3 py-1.5 rounded-lg border border-[rgba(255,255,255,0.1)]" onClick=${refresh}>
+          <span class=${refreshing?'animate-spin inline-block':'inline-block'}>↻</span> Refresh
+        </button>
+      </div>
+      <div class="space-y-0">
+        ${entries.map((e, i) => html`
+          <div key=${e.id} class="relative pl-8 pb-4">
+            ${i < entries.length - 1 && html`<div class="absolute" style="left:7px;top:24px;bottom:0;width:2px;background:rgba(255,255,255,0.07)"></div>`}
+            <div class="absolute left-0 top-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px]"
+              style="background:#1a1714;border:2px solid rgba(255,103,31,0.3)">◉</div>
+            <div class="card card-hover p-4">
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex items-start gap-3 flex-1 min-w-0">
+                  <span class="text-xl flex-shrink-0">${e.icon}</span>
+                  <div class="min-w-0">
+                    <div class="font-medium text-sm text-white leading-tight">${e.title}</div>
+                    <div class="flex items-center gap-2 mt-1">
+                      <span class=${'badge ' + e.color}>${e.category}</span>
+                      <span class="text-[10px] text-[#6b6460]">${e.date} · ${e.time}</span>
+                    </div>
+                  </div>
+                </div>
+                <button class="btn btn-ghost text-xs px-2 py-1 rounded-lg border border-[rgba(255,255,255,0.08)] flex-shrink-0" onClick=${()=>fetch('/api/obsidian/activity/'+e.id).catch(()=>{})}>View →</button>
+              </div>
+            </div>
+          </div>
+        `)}
+      </div>
+    </div>
+  `;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SECTION 8: SYSTEM STATUS
+═══════════════════════════════════════════════════════════════════ */
+
+function SystemStatus() {
+  const [statuses, setStatuses] = useState(SYSTEM_STATUS);
+  const [checking, setChecking] = useState(null);
+
+  const check = async (key) => {
+    setChecking(key);
+    try {
+      const data = await fetch('/api/system/status').then(r => r.json());
+      if (data[key]) setStatuses(s => s.map(x => x.key === key ? { ...x, ...data[key] } : x));
+    } catch {}
+    setTimeout(() => setChecking(null), 1200);
+  };
+
+  const statusDot = s => s === 'ok' ? 'bg-[#ACBF37]' : s === 'warn' ? 'bg-yellow-400' : 'bg-red-500';
+  const statusBadge = s => s === 'ok' ? 'badge-green' : s === 'warn' ? 'badge-yellow' : 'badge-red';
+
+  return html`
+    <div>
+      ${SectionHeader({ question:'Are all systems operational?', title:'System Status', description:'Backend service health. All credentials live in backend .env — no API keys, tokens, or webhooks stored in this browser.' })}
+      <!-- Security notice -->
+      <div class="flex items-start gap-3 p-4 rounded-xl mb-6" style="background:rgba(172,191,55,0.05);border:1px solid rgba(172,191,55,0.2)">
+        <span class="text-[#ACBF37] flex-shrink-0">🔒</span>
+        <div class="text-sm text-[#ACBF37]">
+          <strong>Zero credentials in frontend.</strong> Acumatica endpoint, API credentials, Slack webhook, Twilio tokens, and AI API keys all live in the backend <code class="text-xs font-mono bg-[rgba(172,191,55,0.1)] px-1.5 py-0.5 rounded">.env</code> file. This browser never sees them.
+        </div>
+      </div>
+      <!-- Status cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        ${statuses.map(s => html`
+          <div key=${s.key} class="card card-hover p-4">
+            <div class="flex items-start justify-between mb-3">
+              <div class="flex items-center gap-2.5">
+                <span class="text-2xl">${s.icon}</span>
+                <div>
+                  <div class="font-semibold text-sm text-white">${s.label}</div>
+                  <span class=${'badge mt-0.5 ' + statusBadge(s.status)}>${s.statusLabel}</span>
+                </div>
+              </div>
+              <div class=${'w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1 animate-pulse-dot ' + statusDot(s.status)}></div>
+            </div>
+            <p class="text-xs text-[#9a9491] leading-relaxed mb-3">${s.detail}</p>
+            <div class="flex items-center justify-between pt-2 border-t border-[rgba(255,255,255,0.06)]">
+              <span class="text-[10px] text-[#6b6460]">Last checked: 2 min ago</span>
+              <button class="btn btn-ghost text-[10px] px-2 py-1 rounded-lg border border-[rgba(255,255,255,0.08)]" onClick=${()=>check(s.key)}>
+                <span class=${checking===s.key?'animate-spin inline-block':'inline-block'}>↻</span> Check
+              </button>
+            </div>
+          </div>
+        `)}
+      </div>
+    </div>
+  `;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CHAT DOCK (always-visible right panel)
+═══════════════════════════════════════════════════════════════════ */
+
+function ChatDock({ onClose }) {
+  const [msgs, setMsgs] = useState([{
+    id:'0', role:'assistant',
+    content:"Hi Chris — I'm Rocky. Ask me anything about operations, production, inventory, or the team.",
+    time: new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),
+    source:'Rocky',
+  }]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [dept, setDept] = useState('');
+  const [urgency, setUrgency] = useState('normal');
+  const [followUp, setFollowUp] = useState(false);
+  const [logHistory, setLogHistory] = useState([]);
+  const [showLog, setShowLog] = useState(false);
+  const scrollRef = useRef(null);
+  const sessionId = useRef('chat-' + Date.now());
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [msgs, loading]);
+
+  const send = async () => {
+    if (!input.trim() || loading) return;
+    const content = input.trim();
+    setInput('');
+    const userMsg = { id: Date.now().toString(), role:'user', content, time: new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}), dept: dept||undefined, tags:[dept,urgency!=='normal'?urgency:'',followUp?'follow-up':''].filter(Boolean) };
+    setMsgs(m => [...m, userMsg]);
+    setLoading(true);
+    fetch('/api/log/conversation', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({...userMsg, session: sessionId.current, meta:{dept,urgency,followUp}}) }).catch(()=>{});
+    try {
+      const res = await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ message:content, department:dept, urgency, followUp, person:'chris', session: sessionId.current, history: msgs.slice(-10).map(m=>({role:m.role,content:m.content})) }) });
+      const data = await res.json();
+      const bot = { id:(Date.now()+1).toString(), role:'assistant', content: data.reply||data.message||'(no response from backend)', time: new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}), source: data.source||'backend', tags: data.tags||[] };
+      setMsgs(m => [...m, bot]);
+      fetch('/api/log/conversation', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({...bot, session: sessionId.current}) }).catch(()=>{});
+    } catch {
+      setMsgs(m => [...m, { id:(Date.now()+1).toString(), role:'assistant', content:'Backend unavailable. Make sure /api/chat is running.', time: new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}), source:'error' }]);
+    } finally { setLoading(false); }
+  };
+
+  const logObsidian = async (type, label, emoji) => {
+    if (msgs.length <= 1) return;
+    try {
+      await fetch('/api/log/obsidian', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type, messages:msgs, meta:{dept,urgency,followUp}, session: sessionId.current, timestamp: new Date().toISOString() }) });
+      setLogHistory(h => [{ icon:emoji, label:`${label} saved`, time: new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) }, ...h]);
+    } catch {}
+  };
+
+  return html`
+    <div class="chat-dock flex flex-col h-full flex-shrink-0" style="width:300px">
+      <!-- Header -->
+      <div class="flex items-center justify-between px-3 py-3 border-b flex-shrink-0" style="border-color:rgba(255,255,255,0.07)">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg flex items-center justify-center text-sm flex-shrink-0" style="background:rgba(255,103,31,0.12);border:1px solid rgba(255,103,31,0.22)">🤖</div>
+          <div>
+            <div class="text-sm font-semibold text-white">Rocky</div>
+            <div class="text-[10px] text-[#9a9491]">via /api/chat</div>
+          </div>
+        </div>
+        <div class="flex gap-1">
+          <button class="btn btn-ghost btn-icon text-xs" style="color:#9a9491" onClick=${()=>setShowLog(v=>!v)} title="Obsidian logs">📓</button>
+          <button class="btn btn-ghost btn-icon text-xs" style="color:#9a9491" onClick=${onClose}>✕</button>
+        </div>
+      </div>
+
+      <!-- Obsidian log panel -->
+      ${showLog && html`
+        <div class="border-b px-3 py-2 flex-shrink-0" style="background:rgba(0,0,0,0.2);border-color:rgba(255,255,255,0.07)">
+          <div class="text-[9px] font-semibold uppercase tracking-widest text-[#6b6460] mb-2">Obsidian Logging</div>
+          <div class="grid grid-cols-3 gap-1 mb-1.5">
+            ${[['raw','💾','Raw'],['summary','📋','Summary'],['actions','✅','Actions'],['sop','📐','SOP'],['skills','🧠','Skills'],['deptTags','🏷','Tags']].map(([t,i,l]) => html`
+              <button key=${t} class="text-[9px] px-1.5 py-1.5 rounded-lg text-[#9a9491] hover:text-white transition-colors text-center" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06)" onClick=${()=>logObsidian(t,l,i)}>${i} ${l}</button>
+            `)}
+          </div>
+          ${logHistory.length > 0 && html`
+            <div class="space-y-0.5 max-h-16 overflow-y-auto">
+              ${logHistory.slice(0,3).map((l,i) => html`
+                <div key=${i} class="flex items-center gap-1 text-[9px] text-[#6b6460]">
+                  <span>${l.icon}</span><span class="flex-1 truncate">${l.label}</span><span>${l.time}</span>
+                </div>
+              `)}
+            </div>
+          `}
+        </div>
+      `}
+
+      <!-- Messages -->
+      <div ref=${scrollRef} class="flex-1 overflow-y-auto p-3 space-y-3">
+        ${msgs.map(m => html`
+          <div key=${m.id} class=${'flex ' + (m.role==='user'?'justify-end':'justify-start')}>
+            <div style="max-width:90%">
+              <div class=${'flex items-center gap-1 mb-1 ' + (m.role==='user'?'justify-end':'')}>
+                <span class="text-[9px] text-[#6b6460]">${m.time}</span>
+                ${m.source && html`<span class="text-[9px] px-1.5 py-0.5 rounded-full" style=${{background:'rgba(255,255,255,0.05)',color:m.source==='error'?'#ef4444':'#9a9491'}}>${m.source}</span>`}
+              </div>
+              <div class=${'px-3 py-2 rounded-xl text-xs leading-relaxed ' + (m.role==='user'?'rounded-tr-sm':'rounded-tl-sm')}
+                style=${{ background: m.role==='user'?'linear-gradient(135deg,rgba(255,103,31,0.2),rgba(214,86,43,0.12))':'rgba(255,255,255,0.05)', border:`1px solid ${m.role==='user'?'rgba(255,103,31,0.28)':'rgba(255,255,255,0.07)'}` }}>
+                ${m.content}
+              </div>
+            </div>
+          </div>
+        `)}
+        ${loading && html`
+          <div class="flex justify-start">
+            <div class="px-3 py-2 rounded-xl rounded-tl-sm" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.07)">
+              <div class="flex gap-1">
+                ${[0,150,300].map(d => html`<div key=${d} class="w-1.5 h-1.5 rounded-full bg-[#FF671F] bounce-dot" style=${{animationDelay:d+'ms'}}></div>`)}
+              </div>
+            </div>
+          </div>
+        `}
+      </div>
+
+      <!-- Tag bar -->
+      <div class="px-3 py-1.5 border-t flex-shrink-0" style="background:rgba(0,0,0,0.18);border-color:rgba(255,255,255,0.07)">
+        <div class="flex items-center gap-1.5">
+          <select value=${dept} onChange=${e=>setDept(e.target.value)} class="text-[9px] px-1.5 py-1 rounded text-[#9a9491]" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);flex:1">
+            <option value="">Dept…</option>
+            ${DEPTS_FOR_SELECT.map(d => html`<option key=${d} value=${d}>${d}</option>`)}
+          </select>
+          <select value=${urgency} onChange=${e=>setUrgency(e.target.value)} class="text-[9px] px-1.5 py-1 rounded text-[#9a9491]" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1)">
+            <option value="normal">Norm</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+          <label class="flex items-center gap-1 text-[9px] text-[#9a9491] cursor-pointer whitespace-nowrap">
+            <input type="checkbox" checked=${followUp} onChange=${e=>setFollowUp(e.target.checked)} style="accent-color:#FF671F;width:10px;height:10px"/>
+            FU
+          </label>
+        </div>
+      </div>
+
+      <!-- Input -->
+      <div class="px-3 py-3 border-t flex-shrink-0" style="border-color:rgba(255,255,255,0.07)">
+        <div class="flex gap-2">
+          <textarea value=${input} rows="2" placeholder="Ask Rocky…"
+            class="flex-1 resize-none px-2.5 py-2 text-xs rounded-xl"
+            style=${{ background:'rgba(255,255,255,0.06)', border:`1px solid ${input?'rgba(255,103,31,0.4)':'rgba(255,255,255,0.1)'}` }}
+            onChange=${e=>setInput(e.target.value)}
+            onKeyDown=${e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();} }}
+          />
+          <button class="px-2.5 rounded-xl text-white flex-shrink-0 disabled:opacity-40"
+            style="background:#FF671F"
+            disabled=${loading||!input.trim()}
+            onClick=${send}>→</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SIDEBAR
+═══════════════════════════════════════════════════════════════════ */
+
+function Sidebar({ activeSection, collapsed, onCollapse, onNavigate }) {
+  return html`
+    <aside class="sidebar-bg flex flex-col h-full flex-shrink-0 transition-all duration-200 z-20" style=${{width: collapsed ? '60px' : '236px'}}>
+      <!-- Logo -->
+      <div class="flex items-center gap-3 px-4 py-4 border-b flex-shrink-0" style="border-color:rgba(255,255,255,0.06);min-height:56px">
+        <svg width="32" height="26" viewBox="0 0 44 36" fill="none" style="flex-shrink:0">
           <path d="M22 1L2 35h40L22 1z" fill="#FF671F"/>
           <path d="M14.5 35L22 17l7.5 18" fill="#D6562B"/>
           <path d="M22 1L13 18l9-3 9 3L22 1z" fill="rgba(0,0,0,0.2)"/>
         </svg>
-        <div>
-          <div class="font-display font-black text-xl tracking-widest text-white leading-none">PEAK REFUEL</div>
-          <div class="text-xs font-medium tracking-widest text-brand-orange mt-0.5">COMMAND OS</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Role Switcher -->
-    <div class="px-4 py-3 border-b border-white/5">
-      <div class="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wider">Role</div>
-      <div class="flex flex-wrap gap-1">
-        <template x-for="r in roles" :key="r.id">
-          <button @click="activeRole=r.id" class="role-pill border transition-all" :class="activeRole===r.id ? 'bg-brand-orange/20 border-brand-orange text-brand-orange' : 'bg-white/5 border-white/10 text-gray-400'" x-text="r.label"></button>
-        </template>
-      </div>
-    </div>
-
-    <!-- Navigation -->
-    <nav class="flex-1 py-3 overflow-y-auto">
-      <div class="text-xs text-gray-600 px-4 py-2 font-semibold uppercase tracking-wider">Modules</div>
-      <template x-for="item in navItems" :key="item.id">
-        <div x-show="canAccess(item.id)" class="nav-item" :class="{active: activeView===item.id}" @click="setView(item.id)">
-          <div class="icon" x-html="item.icon"></div>
+        ${!collapsed && html`
           <div>
-            <div x-text="item.label" class="leading-tight"></div>
-            <div x-text="item.sub" class="text-xs opacity-60 mt-0.5 leading-tight"></div>
+            <div class="font-display font-black text-base tracking-widest text-white leading-none">PEAK REFUEL</div>
+            <div class="text-[9px] font-semibold tracking-widest text-[#FF671F] mt-0.5">COMMAND OS</div>
           </div>
-          <span x-show="item.alerts>0" class="ml-auto text-xs font-bold bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0" x-text="item.alerts"></span>
-        </div>
-      </template>
-
-      <div class="text-xs text-gray-600 px-4 py-2 mt-4 font-semibold uppercase tracking-wider">Agents</div>
-      <template x-for="agent in agents" :key="agent.id">
-        <div class="nav-item" @click="setView('agents')">
-          <div class="pulse-dot flex-shrink-0" :class="{'bg-brand-green': agent.status==='running','bg-yellow-400': agent.status==='idle','bg-red-500': agent.status==='error'}"></div>
-          <div x-text="agent.name" class="text-xs leading-tight"></div>
-        </div>
-      </template>
-    </nav>
-
-    <!-- Footer -->
-    <div class="p-4 border-t border-white/5">
-      <div class="flex items-center gap-2 mb-2">
-        <div class="pulse-dot" :class="{'bg-brand-green': acuStatus==='connected','bg-yellow-400': acuStatus==='syncing','bg-red-500': acuStatus==='error'}"></div>
-        <span class="text-xs text-gray-500">Acumatica</span>
-        <span class="text-xs ml-auto" :class="{'text-brand-green': acuStatus==='connected','text-yellow-400': acuStatus==='syncing','text-red-400': acuStatus==='error'}" x-text="acuStatus"></span>
+        `}
       </div>
-      <div class="text-xs text-gray-600" x-text="'Last sync: ' + lastSync"></div>
-      <button @click="syncNow()" class="mt-2 w-full text-xs py-1.5 rounded-lg border border-brand-orange/30 text-brand-orange hover:bg-brand-orange/10 transition-colors font-medium">
-        ↻ Sync Now
-      </button>
-    </div>
-  </aside>
 
-  <!-- MAIN CONTENT -->
-  <main class="main-content flex-1 min-h-screen overflow-y-auto">
-
-    <!-- Top Bar (desktop) -->
-    <header class="hidden md:flex items-center justify-between px-6 py-3 border-b border-white/5 bg-[#1e1b19] sticky top-0 z-20">
-      <div>
-        <h1 class="font-display text-xl font-bold tracking-wide text-white" x-text="currentViewLabel"></h1>
-        <p class="text-xs text-gray-500 mt-0.5" x-text="currentViewSub"></p>
-      </div>
-      <div class="flex items-center gap-3">
-        <!-- Morning Brief Button -->
-        <button @click="showMorningBrief=true" class="flex items-center gap-2 px-3 py-1.5 rounded-lg morning-glow text-sm font-medium text-brand-green hover:opacity-80 transition-opacity">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 0 1 10 10 10 10 0 0 1-10 10A10 10 0 0 1 2 12 10 10 0 0 1 12 2M12 6v6l4 2"/></svg>
-          Morning Brief
-        </button>
-        <!-- Alerts Bell -->
-        <button @click="showNotif=!showNotif" class="relative p-2 rounded-lg hover:bg-white/5 transition-colors">
-          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" class="text-gray-400"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-          <span class="absolute top-1 right-1 w-4 h-4 bg-brand-orange rounded-full text-white text-xs flex items-center justify-center font-bold" x-text="alertCount" x-show="alertCount>0"></span>
-        </button>
-        <!-- Settings -->
-        <button @click="showSettings=true" class="p-2 rounded-lg hover:bg-white/5 transition-colors">
-          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" class="text-gray-400"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-        </button>
-      </div>
-    </header>
-
-    <!-- CONTENT AREA -->
-    <div class="p-4 md:p-6">
-
-      <!-- ═══════════════════════════════════════ -->
-      <!-- VIEW: EXECUTIVE SUMMARY / HOME          -->
-      <!-- ═══════════════════════════════════════ -->
-      <div class="view-panel" :class="{active: activeView==='home'}">
-        <!-- KPI Row -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <template x-for="kpi in kpis" :key="kpi.label">
-            <div class="metric-box">
-              <div class="text-xs text-gray-500 font-medium uppercase tracking-wider mb-2" x-text="kpi.label"></div>
-              <div class="metric-val" :class="kpi.color" x-text="kpi.value"></div>
-              <div class="flex items-center gap-1 mt-2">
-                <span class="text-xs" :class="kpi.trend>0 ? 'text-brand-green' : 'text-red-400'" x-text="(kpi.trend>0?'↑':'↓') + Math.abs(kpi.trend) + '%'"></span>
-                <span class="text-xs text-gray-600">vs last wk</span>
+      <!-- Nav -->
+      <nav class="flex-1 py-2 overflow-y-auto">
+        ${!collapsed && html`<div class="px-4 py-1.5 text-[9px] font-semibold uppercase tracking-widest text-[#6b6460]">Story Flow</div>`}
+        ${SECTIONS.map(s => html`
+          <button key=${s.id}
+            class=${'nav-item w-full text-left ' + (activeSection===s.id ? 'active' : '')}
+            title=${collapsed ? s.title : undefined}
+            onClick=${()=>onNavigate(s.id)}>
+            <div class=${'w-5 h-5 rounded-full border flex items-center justify-center text-[9px] font-bold flex-shrink-0 ' +
+              (activeSection===s.id ? 'border-[#FF671F] text-[#FF671F]' : 'border-[rgba(255,255,255,0.15)] text-[#6b6460]')}
+              style=${activeSection===s.id ? 'background:rgba(255,103,31,0.12)' : ''}>
+              ${s.number}
+            </div>
+            ${!collapsed && html`
+              <div class="overflow-hidden" style="flex:1">
+                <div class="text-xs font-medium leading-tight truncate">${s.title}</div>
+                ${activeSection===s.id && html`<div class="text-[9px] text-[rgba(255,103,31,0.7)] leading-tight truncate mt-0.5">${s.question}</div>`}
               </div>
-            </div>
-          </template>
-        </div>
-
-        <!-- Alert Feed + Morning Brief -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-          <!-- Live Alerts -->
-          <div class="lg:col-span-2 card p-0 overflow-hidden">
-            <div class="flex items-center justify-between px-4 py-3 border-b border-white/5">
-              <div class="flex items-center gap-2">
-                <div class="pulse-dot bg-red-500"></div>
-                <span class="font-semibold text-sm">Live Alerts</span>
-              </div>
-              <span class="text-xs text-gray-500" x-text="liveAlerts.length + ' active'"></span>
-            </div>
-            <div class="divide-y divide-white/5 max-h-72 overflow-y-auto">
-              <template x-for="a in liveAlerts.slice(0,8)" :key="a.id">
-                <div class="alert-row" :class="a.severity" @click="setView('alerts')">
-                  <div class="flex items-start gap-3">
-                    <div class="mt-0.5 flex-shrink-0" x-html="alertIcon(a.severity)"></div>
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center gap-2 flex-wrap">
-                        <span class="text-sm font-medium text-white" x-text="a.title"></span>
-                        <span x-text="a.badge" :class="'badge-' + a.badgeColor"></span>
-                      </div>
-                      <div class="text-xs text-gray-500 mt-0.5" x-text="a.detail"></div>
-                    </div>
-                    <div class="text-xs text-gray-600 flex-shrink-0" x-text="a.time"></div>
-                  </div>
-                </div>
-              </template>
-            </div>
-          </div>
-
-          <!-- Quick Agent Status -->
-          <div class="card p-4">
-            <div class="font-semibold text-sm mb-3 flex items-center gap-2">
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#FF671F" stroke-width="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-              AI Agents
-            </div>
-            <div class="space-y-2">
-              <template x-for="agent in agents" :key="agent.id">
-                <div class="agent-card">
-                  <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-medium text-white" x-text="agent.name"></span>
-                    <div class="pulse-dot" :class="{'bg-brand-green': agent.status==='running','bg-yellow-400': agent.status==='idle','bg-red-500': agent.status==='error'}"></div>
-                  </div>
-                  <div class="text-xs text-gray-500" x-text="agent.lastAction"></div>
-                </div>
-              </template>
-            </div>
-          </div>
-        </div>
-
-        <!-- Acumatica Quick Links -->
-        <div class="card p-4">
-          <div class="font-semibold text-sm mb-3 text-gray-300">Acumatica Quick Access</div>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <template x-for="link in acuLinks" :key="link.label">
-              <button @click="openAcuLink(link)" class="flex items-center gap-2 p-3 rounded-lg bg-white/5 hover:bg-brand-orange/10 border border-white/5 hover:border-brand-orange/30 transition-all text-left group">
-                <div class="text-lg" x-text="link.icon"></div>
-                <div>
-                  <div class="text-xs font-medium text-white group-hover:text-brand-orange transition-colors" x-text="link.label"></div>
-                  <div class="text-xs text-gray-600" x-text="link.sub"></div>
-                </div>
-              </button>
-            </template>
-          </div>
-        </div>
-      </div>
-
-      <!-- ═══════════════════════════════════════ -->
-      <!-- VIEW 1: SALES-TO-PRODUCTION ALERTS      -->
-      <!-- ═══════════════════════════════════════ -->
-      <div class="view-panel" :class="{active: activeView==='alerts'}">
-        <!-- Tabs -->
-        <div class="flex gap-2 mb-5 flex-wrap">
-          <button class="tab-btn" :class="{active: alertTab==='all'}" @click="alertTab='all'">All Alerts</button>
-          <button class="tab-btn" :class="{active: alertTab==='critical'}" @click="alertTab='critical'">
-            Critical <span class="ml-1 badge-red" x-text="liveAlerts.filter(a=>a.severity==='critical').length"></span>
+            `}
           </button>
-          <button class="tab-btn" :class="{active: alertTab==='forecast'}" @click="alertTab='forecast'">Forecast vs Actual</button>
-          <button class="tab-btn" :class="{active: alertTab==='reorder'}" @click="alertTab='reorder'">Reorder Triggers</button>
-        </div>
+        `)}
 
-        <!-- Forecast vs Actual Chart -->
-        <div class="card p-4 mb-4" x-show="alertTab==='all' || alertTab==='forecast'">
-          <div class="flex items-center justify-between mb-4">
-            <div>
-              <div class="font-semibold text-white">Sales Forecast vs Actual — Rolling 8 Weeks</div>
-              <div class="text-xs text-gray-500 mt-0.5">Sourced from Acumatica SO + demand planning</div>
-            </div>
-            <div class="flex gap-3 text-xs">
-              <div class="flex items-center gap-1.5"><div class="w-3 h-0.5 bg-brand-orange rounded"></div><span class="text-gray-400">Forecast</span></div>
-              <div class="flex items-center gap-1.5"><div class="w-3 h-0.5 bg-brand-green rounded"></div><span class="text-gray-400">Actual</span></div>
-              <div class="flex items-center gap-1.5"><div class="w-3 h-0.5 bg-blue-400 rounded border-dashed"></div><span class="text-gray-400">Capacity</span></div>
-            </div>
-          </div>
-          <div class="chart-wrap" style="height:200px">
-            <canvas id="forecastChart"></canvas>
-          </div>
+        <div class="mt-3 mb-1 ${collapsed ? '' : 'px-4 py-1.5'}">
+          ${!collapsed && html`<div class="text-[9px] font-semibold uppercase tracking-widest text-[#6b6460]">Agents</div>`}
         </div>
+        ${AGENTS.map(a => html`
+          <div key=${a.id} class=${'flex items-center gap-2.5 px-5 py-1.5 text-[11px] text-[#9a9491] ' + (collapsed ? 'justify-center px-0' : '')} title=${collapsed ? a.name : undefined}>
+            <div class=${'w-2 h-2 rounded-full flex-shrink-0 animate-pulse-dot ' + (a.status==='running'?'bg-[#ACBF37]':a.status==='idle'?'bg-yellow-400':'bg-red-500')}></div>
+            ${!collapsed && html`<span class="truncate">${a.name}</span>`}
+          </div>
+        `)}
+      </nav>
 
-        <!-- Alert Table -->
-        <div class="card overflow-hidden">
-          <div class="px-4 py-3 border-b border-white/5 flex items-center justify-between">
-            <span class="font-semibold text-sm">Alert Feed</span>
-            <div class="flex gap-2">
-              <button @click="ackAll()" class="text-xs px-3 py-1 rounded-lg bg-brand-green/10 text-brand-green border border-brand-green/20 hover:bg-brand-green/20 transition-colors font-medium">Ack All</button>
-              <button @click="pushToAcu()" class="text-xs px-3 py-1 rounded-lg bg-brand-orange/10 text-brand-orange border border-brand-orange/20 hover:bg-brand-orange/20 transition-colors font-medium">→ Push to Acumatica</button>
-            </div>
+      <!-- Footer -->
+      <div class="border-t p-3 flex items-center justify-between flex-shrink-0" style="border-color:rgba(255,255,255,0.06)">
+        ${!collapsed && html`
+          <div class="flex items-center gap-2">
+            <div class="w-2 h-2 rounded-full bg-yellow-400 animate-pulse-dot"></div>
+            <span class="text-[10px] text-yellow-400 font-medium">Sandbox</span>
           </div>
-          <div class="overflow-x-auto">
-            <table class="data-table w-full">
-              <thead>
-                <tr>
-                  <th>Severity</th>
-                  <th>Alert</th>
-                  <th>SKU / Run</th>
-                  <th>Forecast</th>
-                  <th>Actual</th>
-                  <th>Delta</th>
-                  <th>Action</th>
-                  <th>Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                <template x-for="a in filteredAlerts" :key="a.id">
-                  <tr>
-                    <td><span :class="'badge-' + a.badgeColor" x-text="a.severity.toUpperCase()"></span></td>
-                    <td class="text-white font-medium" x-text="a.title"></td>
-                    <td class="text-gray-400 font-mono text-xs" x-text="a.sku || '—'"></td>
-                    <td x-text="a.forecast || '—'"></td>
-                    <td x-text="a.actual || '—'"></td>
-                    <td :class="a.delta && a.delta < 0 ? 'text-red-400' : 'text-brand-green'" x-text="a.delta ? (a.delta > 0 ? '+' : '') + a.delta + '%' : '—'"></td>
-                    <td>
-                      <button x-show="a.canAcu" @click="acuAction(a)" class="text-xs px-2 py-1 rounded bg-brand-orange/10 text-brand-orange hover:bg-brand-orange/20 transition-colors font-medium" x-text="a.acuAction || 'Update'"></button>
-                    </td>
-                    <td class="text-gray-600 text-xs" x-text="a.time"></td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- AI Analysis Panel -->
-        <div class="mt-4 agent-bubble p-4 rounded-xl">
-          <div class="flex items-start gap-3">
-            <div class="w-8 h-8 rounded-full bg-brand-orange/20 border border-brand-orange/30 flex items-center justify-center flex-shrink-0">
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#FF671F" stroke-width="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-            </div>
-            <div>
-              <div class="text-xs font-semibold text-brand-orange mb-1">Sales Intelligence Agent — Analysis</div>
-              <div class="text-sm text-gray-300 leading-relaxed" x-text="agentAnalysis"></div>
-              <div class="flex gap-2 mt-3">
-                <button @click="agentAction('po')" class="text-xs px-3 py-1.5 rounded-lg bg-brand-orange/15 border border-brand-orange/30 text-brand-orange hover:bg-brand-orange/25 transition-colors font-medium">Create PO Draft</button>
-                <button @click="agentAction('sms')" class="text-xs px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 transition-colors font-medium">SMS Larry</button>
-                <button @click="agentAction('slack')" class="text-xs px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 transition-colors font-medium">Post to Slack</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        `}
+        <button class="btn btn-ghost btn-icon ml-auto" onClick=${onCollapse}>
+          ${collapsed ? '→' : '←'}
+        </button>
       </div>
-
-      <!-- ═══════════════════════════════════════ -->
-      <!-- VIEW 2: YIELD TRENDING                  -->
-      <!-- ═══════════════════════════════════════ -->
-      <div class="view-panel" :class="{active: activeView==='yield'}">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
-          <template x-for="ym in yieldMetrics" :key="ym.sku">
-            <div class="metric-box">
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-xs text-gray-500 font-medium uppercase tracking-wider" x-text="ym.sku"></span>
-                <span :class="'badge-' + ym.statusColor" x-text="ym.status"></span>
-              </div>
-              <div class="flex items-end gap-2">
-                <div class="metric-val text-white" x-text="ym.yield + '%'"></div>
-                <div class="text-xs mb-1" :class="ym.trend>0?'text-brand-green':'text-red-400'" x-text="(ym.trend>0?'↑':'↓')+Math.abs(ym.trend)+'%'"></div>
-              </div>
-              <div class="text-xs text-gray-500 mt-1" x-text="'Target: ' + ym.target + '%'"></div>
-              <div class="progress-track mt-2">
-                <div class="progress-fill" :style="'width:'+Math.min(ym.yield/ym.target*100,100)+'%;background:'+(ym.yield>=ym.target?'#ACBF37':'#FF671F')"></div>
-              </div>
-            </div>
-          </template>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-          <div class="card p-4">
-            <div class="font-semibold text-sm mb-3 text-white">Yield by SKU — 12 Week Trend</div>
-            <div class="chart-wrap" style="height:220px">
-              <canvas id="yieldTrendChart"></canvas>
-            </div>
-          </div>
-          <div class="card p-4">
-            <div class="font-semibold text-sm mb-3 text-white">Batch Size vs Yield Correlation</div>
-            <div class="chart-wrap" style="height:220px">
-              <canvas id="yieldScatterChart"></canvas>
-            </div>
-          </div>
-        </div>
-
-        <!-- Yield Detail Table -->
-        <div class="card overflow-hidden">
-          <div class="px-4 py-3 border-b border-white/5 flex items-center justify-between">
-            <span class="font-semibold text-sm">Batch Yield Log — From Chad's Spreadsheet + Acumatica</span>
-            <button @click="exportYield()" class="text-xs px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10 transition-colors">↓ Export CSV</button>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="data-table w-full">
-              <thead>
-                <tr>
-                  <th>Batch #</th>
-                  <th>SKU</th>
-                  <th>Date</th>
-                  <th>Batch Lbs</th>
-                  <th>Output Lbs</th>
-                  <th>Yield %</th>
-                  <th>Variance</th>
-                  <th>Operator</th>
-                </tr>
-              </thead>
-              <tbody>
-                <template x-for="b in batchLog" :key="b.batch">
-                  <tr>
-                    <td class="font-mono text-xs text-gray-400" x-text="b.batch"></td>
-                    <td class="text-white font-medium" x-text="b.sku"></td>
-                    <td class="text-gray-400" x-text="b.date"></td>
-                    <td x-text="b.input + ' lbs'"></td>
-                    <td x-text="b.output + ' lbs'"></td>
-                    <td :class="b.yield >= b.target ? 'text-brand-green font-semibold' : 'text-red-400 font-semibold'" x-text="b.yield + '%'"></td>
-                    <td :class="b.yield >= b.target ? 'text-brand-green' : 'text-red-400'" x-text="(b.yield-b.target>0?'+':'') + (b.yield-b.target).toFixed(1) + '%'"></td>
-                    <td class="text-gray-400" x-text="b.operator"></td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- ═══════════════════════════════════════ -->
-      <!-- VIEW 3: PRODUCTION READINESS            -->
-      <!-- ═══════════════════════════════════════ -->
-      <div class="view-panel" :class="{active: activeView==='production'}">
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          <template x-for="run in productionRuns" :key="run.id">
-            <div class="card card-glow overflow-hidden" :class="run.status==='READY' ? 'border-brand-green/20' : run.status==='BLOCKED' ? 'border-red-500/20' : 'border-yellow-400/20'">
-              <!-- Run Header -->
-              <div class="px-4 py-3 flex items-center justify-between border-b border-white/5" :class="run.status==='READY' ? 'bg-brand-green/5' : run.status==='BLOCKED' ? 'bg-red-500/5' : 'bg-yellow-400/5'">
-                <div>
-                  <div class="flex items-center gap-2">
-                    <div class="w-2.5 h-2.5 rounded-full" :class="run.status==='READY'?'bg-brand-green':run.status==='BLOCKED'?'bg-red-500':'bg-yellow-400'"></div>
-                    <span class="font-bold text-white text-sm" x-text="run.sku"></span>
-                    <span class="badge-gray text-xs font-mono" x-text="run.runId"></span>
-                  </div>
-                  <div class="text-xs text-gray-500 mt-0.5" x-text="'Scheduled: ' + run.scheduled"></div>
-                </div>
-                <span class="font-display font-bold text-lg" :class="run.status==='READY'?'text-brand-green':run.status==='BLOCKED'?'text-red-400':'text-yellow-400'" x-text="run.status"></span>
-              </div>
-
-              <!-- Run Details -->
-              <div class="p-4">
-                <div class="grid grid-cols-2 gap-3 mb-4 text-xs">
-                  <div><span class="text-gray-500">Batch Size</span><div class="text-white font-semibold mt-0.5" x-text="run.batchSize + ' lbs'"></div></div>
-                  <div><span class="text-gray-500">Est. Output</span><div class="text-white font-semibold mt-0.5" x-text="run.estOutput + ' units'"></div></div>
-                  <div><span class="text-gray-500">Acumatica MO</span><div class="text-brand-orange font-mono font-semibold mt-0.5" x-text="run.moNumber"></div></div>
-                  <div><span class="text-gray-500">Priority</span><div class="font-semibold mt-0.5" :class="run.priority==='HIGH'?'text-red-400':run.priority==='MED'?'text-yellow-400':'text-gray-300'" x-text="run.priority"></div></div>
-                </div>
-
-                <!-- Ingredient Status -->
-                <div class="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-2">Ingredients</div>
-                <div class="space-y-1">
-                  <template x-for="ing in run.ingredients" :key="ing.name">
-                    <div class="ingr-row">
-                      <div class="w-2 h-2 rounded-full flex-shrink-0" :class="ing.status==='ok'?'bg-brand-green':ing.status==='low'?'bg-yellow-400':'bg-red-500'"></div>
-                      <div class="flex-1 text-xs text-gray-300" x-text="ing.name"></div>
-                      <div class="text-xs font-medium" :class="ing.status==='ok'?'text-brand-green':ing.status==='low'?'text-yellow-400':'text-red-400'" x-text="ing.qty"></div>
-                    </div>
-                  </template>
-                </div>
-
-                <!-- Actions -->
-                <div class="flex gap-2 mt-4">
-                  <button @click="startRun(run)" x-show="run.status==='READY'" class="flex-1 text-xs py-2 rounded-lg bg-brand-green/15 border border-brand-green/30 text-brand-green hover:bg-brand-green/25 transition-colors font-semibold">▶ Start Run</button>
-                  <button @click="resolveBlock(run)" x-show="run.status==='BLOCKED'" class="flex-1 text-xs py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/15 transition-colors font-semibold">⚠ Resolve Block</button>
-                  <button @click="reviewRun(run)" x-show="run.status==='PENDING'" class="flex-1 text-xs py-2 rounded-lg bg-yellow-400/10 border border-yellow-400/20 text-yellow-400 hover:bg-yellow-400/15 transition-colors font-semibold">Review</button>
-                  <button @click="viewMO(run)" class="text-xs px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10 transition-colors font-medium">MO →</button>
-                </div>
-              </div>
-            </div>
-          </template>
-        </div>
-      </div>
-
-      <!-- ═══════════════════════════════════════ -->
-      <!-- VIEW 4: ORDERING INTELLIGENCE           -->
-      <!-- ═══════════════════════════════════════ -->
-      <div class="view-panel" :class="{active: activeView==='ordering'}">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
-          <!-- PO Recommendations -->
-          <div class="lg:col-span-2 card overflow-hidden">
-            <div class="px-4 py-3 border-b border-white/5 flex items-center justify-between">
-              <span class="font-semibold text-sm">PO Recommendations — AI Generated</span>
-              <button @click="createAllPOs()" class="text-xs px-3 py-1.5 rounded-lg bg-brand-orange/15 border border-brand-orange/30 text-brand-orange hover:bg-brand-orange/25 transition-colors font-semibold">Create All in Acumatica →</button>
-            </div>
-            <div class="overflow-x-auto">
-              <table class="data-table w-full">
-                <thead>
-                  <tr>
-                    <th>Ingredient</th>
-                    <th>On Hand</th>
-                    <th>Reorder Pt</th>
-                    <th>Rec. Qty</th>
-                    <th>Vendor</th>
-                    <th>Est. Cost</th>
-                    <th>Urgency</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <template x-for="po in poRecommendations" :key="po.ingredient">
-                    <tr>
-                      <td class="text-white font-medium" x-text="po.ingredient"></td>
-                      <td :class="po.onHand <= po.reorder ? 'text-red-400 font-semibold' : 'text-gray-300'" x-text="po.onHand + ' ' + po.unit"></td>
-                      <td class="text-gray-400" x-text="po.reorder + ' ' + po.unit"></td>
-                      <td class="text-brand-orange font-semibold" x-text="po.recQty + ' ' + po.unit"></td>
-                      <td class="text-gray-400" x-text="po.vendor"></td>
-                      <td class="text-white" x-text="'$' + po.cost.toLocaleString()"></td>
-                      <td><span :class="'badge-' + po.urgencyColor" x-text="po.urgency"></span></td>
-                      <td><button @click="createPO(po)" class="text-xs px-2 py-1 rounded bg-brand-orange/10 text-brand-orange hover:bg-brand-orange/20 font-medium">Create PO</button></td>
-                    </tr>
-                  </template>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- Market Signals -->
-          <div class="card p-4">
-            <div class="flex items-center gap-2 mb-3">
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#ACBF37" stroke-width="2"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
-              <span class="font-semibold text-sm">Market Listening Ear</span>
-            </div>
-            <div class="space-y-3">
-              <template x-for="sig in marketSignals" :key="sig.id">
-                <div class="p-3 rounded-lg bg-white/3 border border-white/5">
-                  <div class="flex items-start gap-2">
-                    <span class="text-lg flex-shrink-0" x-text="sig.icon"></span>
-                    <div>
-                      <div class="text-xs font-semibold text-white" x-text="sig.title"></div>
-                      <div class="text-xs text-gray-500 mt-0.5" x-text="sig.detail"></div>
-                      <div class="flex items-center gap-1 mt-1">
-                        <span class="text-xs" :class="sig.impact>0?'text-brand-green':'text-red-400'" x-text="(sig.impact>0?'+':'')+sig.impact+'% price signal'"></span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </template>
-            </div>
-          </div>
-        </div>
-
-        <!-- Spend Analysis Chart -->
-        <div class="card p-4">
-          <div class="font-semibold text-sm mb-3 text-white">Ingredient Spend — Rolling 6 Months</div>
-          <div class="chart-wrap" style="height:180px">
-            <canvas id="spendChart"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- ═══════════════════════════════════════ -->
-      <!-- VIEW 5: SALES TEAM INVENTORY            -->
-      <!-- ═══════════════════════════════════════ -->
-      <div class="view-panel" :class="{active: activeView==='inventory'}">
-        <!-- Search / Filter bar -->
-        <div class="flex gap-3 mb-5">
-          <input type="search" placeholder="Search SKU or product..." class="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-brand-orange/50" x-model="inventorySearch"/>
-          <select class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-brand-orange/50" x-model="inventoryFilter">
-            <option value="all">All Status</option>
-            <option value="in-stock">In Stock</option>
-            <option value="low">Low Stock</option>
-            <option value="out">Out of Stock</option>
-          </select>
-        </div>
-
-        <!-- Inventory Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-5">
-          <template x-for="item in filteredInventory" :key="item.sku">
-            <div class="card p-4">
-              <div class="flex items-start justify-between mb-3">
-                <div>
-                  <div class="text-xs font-mono text-gray-500 mb-0.5" x-text="item.sku"></div>
-                  <div class="text-sm font-semibold text-white" x-text="item.name"></div>
-                  <div class="text-xs text-gray-500 mt-0.5" x-text="item.flavor"></div>
-                </div>
-                <span :class="item.statusColor" x-text="item.status"></span>
-              </div>
-              <div class="space-y-1.5">
-                <div class="flex justify-between text-xs">
-                  <span class="text-gray-500">On Hand</span>
-                  <span class="font-semibold text-white" x-text="item.onHand.toLocaleString() + ' units'"></span>
-                </div>
-                <div class="flex justify-between text-xs">
-                  <span class="text-gray-500">In Production</span>
-                  <span class="text-brand-orange font-medium" x-text="item.inProd > 0 ? item.inProd.toLocaleString() + ' units' : '—'"></span>
-                </div>
-                <div class="flex justify-between text-xs">
-                  <span class="text-gray-500">Available to Sell</span>
-                  <span class="font-bold" :class="item.ats > 500 ? 'text-brand-green' : item.ats > 0 ? 'text-yellow-400' : 'text-red-400'" x-text="item.ats.toLocaleString() + ' units'"></span>
-                </div>
-              </div>
-              <div class="progress-track mt-3">
-                <div class="progress-fill" :style="'width:'+Math.min(item.onHand/item.maxStock*100,100)+'%;background:'+(item.onHand>item.maxStock*0.3?'#ACBF37':'#FF671F')"></div>
-              </div>
-              <div class="flex justify-between mt-1">
-                <span class="text-xs text-gray-600">0</span>
-                <span class="text-xs text-gray-600" x-text="item.maxStock.toLocaleString()"></span>
-              </div>
-            </div>
-          </template>
-        </div>
-
-        <!-- ETA Table -->
-        <div class="card overflow-hidden">
-          <div class="px-4 py-3 border-b border-white/5">
-            <span class="font-semibold text-sm">Production ETAs — For Customer Commitments</span>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="data-table w-full">
-              <thead>
-                <tr><th>SKU</th><th>MO #</th><th>Qty</th><th>Start</th><th>Est. Complete</th><th>Days Out</th><th>Status</th></tr>
-              </thead>
-              <tbody>
-                <template x-for="mo in productionETAs" :key="mo.mo">
-                  <tr>
-                    <td class="text-white font-medium" x-text="mo.sku"></td>
-                    <td class="font-mono text-xs text-brand-orange" x-text="mo.mo"></td>
-                    <td x-text="mo.qty.toLocaleString()"></td>
-                    <td class="text-gray-400" x-text="mo.start"></td>
-                    <td class="text-white font-medium" x-text="mo.eta"></td>
-                    <td :class="mo.days<=3?'text-red-400 font-bold':mo.days<=7?'text-yellow-400 font-semibold':'text-brand-green'" x-text="mo.days + ' days'"></td>
-                    <td><span :class="'badge-' + mo.statusColor" x-text="mo.status"></span></td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- ═══════════════════════════════════════ -->
-      <!-- VIEW: AGENTS                            -->
-      <!-- ═══════════════════════════════════════ -->
-      <div class="view-panel" :class="{active: activeView==='agents'}">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <template x-for="agent in agentDetails" :key="agent.id">
-            <div class="card p-5">
-              <div class="flex items-start justify-between mb-4">
-                <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 rounded-xl bg-brand-orange/10 border border-brand-orange/20 flex items-center justify-center text-lg" x-text="agent.icon"></div>
-                  <div>
-                    <div class="font-semibold text-white" x-text="agent.name"></div>
-                    <div class="text-xs text-gray-500" x-text="agent.role"></div>
-                  </div>
-                </div>
-                <div class="flex items-center gap-2">
-                  <div class="pulse-dot" :class="{'bg-brand-green': agent.status==='running','bg-yellow-400': agent.status==='idle','bg-red-500': agent.status==='error'}"></div>
-                  <span class="text-xs font-medium" :class="{'text-brand-green': agent.status==='running','text-yellow-400': agent.status==='idle','text-red-400': agent.status==='error'}" x-text="agent.status"></span>
-                </div>
-              </div>
-
-              <div class="text-xs text-gray-400 leading-relaxed mb-4" x-text="agent.description"></div>
-
-              <div class="space-y-1 mb-4">
-                <div class="text-xs text-gray-600 font-semibold uppercase tracking-wider mb-2">Recent Actions</div>
-                <template x-for="action in agent.recentActions" :key="action">
-                  <div class="text-xs text-gray-400 flex items-start gap-2">
-                    <span class="text-brand-orange mt-0.5 flex-shrink-0">›</span>
-                    <span x-text="action"></span>
-                  </div>
-                </template>
-              </div>
-
-              <div class="flex gap-2">
-                <button @click="triggerAgent(agent)" class="flex-1 text-xs py-2 rounded-lg bg-brand-orange/10 border border-brand-orange/20 text-brand-orange hover:bg-brand-orange/20 transition-colors font-medium">▶ Trigger Now</button>
-                <button @click="configAgent(agent)" class="text-xs px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10 transition-colors font-medium">Config</button>
-              </div>
-            </div>
-          </template>
-        </div>
-      </div>
-
-      <!-- ═══════════════════════════════════════ -->
-      <!-- VIEW: CHRIS CHAT                        -->
-      <!-- ═══════════════════════════════════════ -->
-      <div class="view-panel" :class="{active: activeView==='chat'}">
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
-
-          <!-- Chat Main Panel -->
-          <div class="lg:col-span-3 flex flex-col" style="height:calc(100vh - 160px);min-height:520px">
-            <div class="card flex flex-col h-full overflow-hidden">
-
-              <!-- Chat Header -->
-              <div class="flex items-center justify-between px-4 py-3 border-b border-white/5 flex-shrink-0">
-                <div class="flex items-center gap-3">
-                  <div class="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0" style="background:rgba(255,103,31,0.12);border:1px solid rgba(255,103,31,0.25)">🤖</div>
-                  <div>
-                    <div class="font-semibold text-sm text-white">Peak Refuel Assistant</div>
-                    <div class="text-xs text-gray-500">Routes through <span class="text-brand-orange font-medium">/api/chat</span> · Never calls AI directly from browser</div>
-                  </div>
-                </div>
-                <span class="badge-orange text-xs" x-text="'Source: ' + chatSource"></span>
-              </div>
-
-              <!-- Messages -->
-              <div class="flex-1 overflow-y-auto p-4 space-y-4 chat-scroll" x-ref="chatScroll">
-                <!-- Empty state -->
-                <div x-show="chatMessages.length===0" class="flex flex-col items-center justify-center h-full text-center py-12">
-                  <div class="text-4xl mb-3">💬</div>
-                  <div class="font-semibold text-white mb-1">Ask anything about Peak Refuel operations</div>
-                  <div class="text-sm text-gray-500 max-w-xs">Production status, inventory levels, orders, supplier info, yield trends — all routed securely through the backend.</div>
-                </div>
-
-                <template x-for="msg in chatMessages" :key="msg.id">
-                  <div class="flex" :class="msg.role==='user'?'justify-end':'justify-start'">
-                    <div style="max-width:76%">
-                      <!-- Meta row -->
-                      <div class="flex items-center gap-2 mb-1" :class="msg.role==='user'?'justify-end':'justify-start'">
-                        <span class="text-xs text-gray-600" x-text="msg.timestamp"></span>
-                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full" :class="msg.role==='user'?'text-brand-orange':'text-gray-400'" style="background:rgba(255,255,255,0.06)" x-text="msg.role==='user'?('Chris · '+(msg.dept||'General')):'Assistant'"></span>
-                        <span x-show="msg.source && msg.source!=='error'" class="badge-gray text-xs" x-text="msg.source"></span>
-                        <span x-show="msg.source==='error'" class="badge-red text-xs">Error</span>
-                      </div>
-                      <!-- Bubble -->
-                      <div class="px-4 py-3 rounded-2xl text-sm leading-relaxed" :class="msg.role==='user'?'chat-user rounded-tr-sm':'chat-bot rounded-tl-sm'" x-text="msg.content"></div>
-                      <!-- Tags -->
-                      <div x-show="msg.tags && msg.tags.length>0" class="flex flex-wrap gap-1 mt-1.5" :class="msg.role==='user'?'justify-end':''">
-                        <template x-for="tag in (msg.tags||[])" :key="tag">
-                          <span class="text-xs text-gray-500 px-2 py-0.5 rounded-full" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08)" x-text="tag"></span>
-                        </template>
-                      </div>
-                    </div>
-                  </div>
-                </template>
-
-                <!-- Typing indicator -->
-                <div x-show="chatLoading" class="flex justify-start">
-                  <div class="chat-bot px-4 py-3 rounded-2xl rounded-tl-sm flex items-center gap-1">
-                    <div class="w-2 h-2 rounded-full bg-brand-orange bounce-dot" style="animation-delay:0ms"></div>
-                    <div class="w-2 h-2 rounded-full bg-brand-orange bounce-dot" style="animation-delay:150ms"></div>
-                    <div class="w-2 h-2 rounded-full bg-brand-orange bounce-dot" style="animation-delay:300ms"></div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Tag Bar -->
-              <div class="px-4 py-2 border-t border-white/5 flex-shrink-0" style="background:rgba(0,0,0,0.15)">
-                <div class="flex items-center gap-2 flex-wrap">
-                  <span class="text-xs text-gray-600">Tag:</span>
-                  <select x-model="chatMeta.dept" class="text-xs rounded-lg px-2 py-1 text-gray-300 focus:outline-none focus:border-brand-orange/40" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1)">
-                    <option value="">Department…</option>
-                    <template x-for="d in departments" :key="d.id">
-                      <option :value="d.id" x-text="d.label"></option>
-                    </template>
-                  </select>
-                  <select x-model="chatMeta.urgency" class="text-xs rounded-lg px-2 py-1 text-gray-300 focus:outline-none focus:border-brand-orange/40" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1)">
-                    <option value="normal">Normal</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
-                  </select>
-                  <label class="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer select-none">
-                    <input type="checkbox" x-model="chatMeta.followUp" class="rounded accent-brand-orange"/>
-                    Follow-up needed
-                  </label>
-                  <span x-show="chatMeta.followUp" class="badge-yellow text-xs">Follow-up</span>
-                  <span x-show="chatMeta.urgency==='urgent'" class="badge-red text-xs">Urgent</span>
-                  <span x-show="chatMeta.urgency==='high'" class="badge-yellow text-xs">High</span>
-                </div>
-              </div>
-
-              <!-- Input Row -->
-              <div class="px-4 py-3 border-t border-white/5 flex-shrink-0">
-                <div class="flex gap-3 items-end">
-                  <textarea
-                    x-model="chatInput"
-                    @keydown.enter.prevent="if(!$event.shiftKey) sendChat()"
-                    placeholder="Ask about production, inventory, orders, vendors… (Enter to send · Shift+Enter new line)"
-                    rows="2"
-                    class="flex-1 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none resize-none"
-                    style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1)"
-                    :style="chatInput?'border-color:rgba(255,103,31,0.4)':''"
-                  ></textarea>
-                  <div class="flex flex-col gap-2">
-                    <button @click="sendChat()" :disabled="chatLoading||!chatInput.trim()" class="px-4 py-2.5 rounded-xl bg-brand-orange text-white font-bold text-sm hover:bg-brand-deep-orange transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Send</button>
-                    <button @click="logToObsidian('summary')" class="px-3 py-2 rounded-xl text-gray-400 hover:text-white transition-colors text-xs font-medium text-center" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1)" title="Save summary to Obsidian">📝 Log</button>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-          <!-- Right Sidebar -->
-          <div class="space-y-3">
-
-            <!-- Session Info -->
-            <div class="card p-4">
-              <div class="font-semibold text-sm mb-3 text-white">Session Info</div>
-              <div class="space-y-2 text-xs text-gray-400">
-                <div class="flex justify-between"><span>Person</span><span class="text-white font-medium">Chris</span></div>
-                <div class="flex justify-between"><span>Messages</span><span class="text-white font-medium" x-text="chatMessages.length"></span></div>
-                <div class="flex justify-between"><span>Department</span><span class="text-brand-orange font-medium" x-text="chatMeta.dept||'Untagged'"></span></div>
-                <div class="flex justify-between"><span>Urgency</span><span class="font-medium capitalize" :class="chatMeta.urgency==='urgent'?'text-red-400':chatMeta.urgency==='high'?'text-yellow-400':'text-brand-green'" x-text="chatMeta.urgency"></span></div>
-                <div class="flex justify-between"><span>Follow-up</span><span :class="chatMeta.followUp?'text-yellow-400':'text-gray-600'" x-text="chatMeta.followUp?'Yes':'No'"></span></div>
-              </div>
-              <button @click="chatMessages=[];chatInput='';obsidianLogs=[]" class="mt-3 w-full text-xs py-1.5 rounded-lg text-gray-500 hover:text-white transition-colors" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08)">Clear Session</button>
-            </div>
-
-            <!-- Obsidian Logging -->
-            <div class="card p-4">
-              <div class="font-semibold text-sm mb-3 text-white flex items-center gap-2">
-                📓 <span>Obsidian Logging</span>
-              </div>
-              <div class="space-y-2">
-                <button @click="logToObsidian('raw')" class="w-full text-left text-xs px-3 py-2 rounded-lg text-gray-400 hover:text-white transition-all" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)">💾 Save Raw Chat</button>
-                <button @click="logToObsidian('summary')" class="w-full text-left text-xs px-3 py-2 rounded-lg text-gray-400 hover:text-white transition-all" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)">📋 Save Summary</button>
-                <button @click="logToObsidian('actions')" class="w-full text-left text-xs px-3 py-2 rounded-lg text-gray-400 hover:text-white transition-all" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)">✅ Save Action Items</button>
-                <button @click="logToObsidian('sop')" class="w-full text-left text-xs px-3 py-2 rounded-lg text-gray-400 hover:text-white transition-all" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)">📐 SOP Candidates</button>
-                <button @click="logToObsidian('skills')" class="w-full text-left text-xs px-3 py-2 rounded-lg text-gray-400 hover:text-white transition-all" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)">🧠 Skill Candidates</button>
-                <button @click="logToObsidian('deptTags')" class="w-full text-left text-xs px-3 py-2 rounded-lg text-gray-400 hover:text-white transition-all" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)">🏷️ Dept Tags</button>
-              </div>
-            </div>
-
-            <!-- Recent Logs -->
-            <div class="card p-4">
-              <div class="font-semibold text-sm mb-3 text-white">Recent Logs</div>
-              <div class="space-y-2">
-                <template x-for="log in obsidianLogs.slice(0,6)" :key="log.id">
-                  <div class="flex items-center gap-2 text-xs">
-                    <span x-text="log.icon"></span>
-                    <span class="text-gray-400 flex-1 truncate" x-text="log.label"></span>
-                    <span class="text-gray-600 flex-shrink-0" x-text="log.time"></span>
-                  </div>
-                </template>
-                <div x-show="obsidianLogs.length===0" class="text-xs text-gray-600">No logs yet this session</div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </div>
-
-      <!-- ═══════════════════════════════════════ -->
-      <!-- VIEW: DEPARTMENT INTELLIGENCE           -->
-      <!-- ═══════════════════════════════════════ -->
-      <div class="view-panel" :class="{active: activeView==='departments'}">
-        <div class="flex items-center gap-3 mb-5 p-3 rounded-xl" style="background:rgba(255,103,31,0.05);border:1px solid rgba(255,103,31,0.15)">
-          <span class="text-lg">ℹ️</span>
-          <div class="text-xs text-gray-400">Department intelligence structure with agent config stubs. <span class="text-yellow-400 font-semibold">No autonomous agents are active.</span> All write-back is disabled. Configs are defined and ready to wire to backend agents.</div>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          <template x-for="dept in departments" :key="dept.id">
-            <div class="dept-card">
-              <div class="flex items-start justify-between mb-3">
-                <div class="flex items-center gap-2">
-                  <span class="text-2xl leading-none" x-text="dept.icon"></span>
-                  <div>
-                    <div class="font-semibold text-sm text-white leading-tight" x-text="dept.label"></div>
-                    <div class="text-xs text-gray-500 mt-0.5 leading-tight" x-text="dept.description"></div>
-                  </div>
-                </div>
-              </div>
-              <div class="space-y-1.5 text-xs mb-3">
-                <div class="text-gray-600 font-semibold uppercase tracking-wider mb-1.5">Agent Config</div>
-                <div>
-                  <span class="text-gray-500">Sources: </span>
-                  <span class="text-gray-300" x-text="dept.agent.sources.join(' · ')"></span>
-                </div>
-                <div>
-                  <span class="text-gray-500">Outputs: </span>
-                  <span class="text-gray-300" x-text="dept.agent.outputs.join(' · ')"></span>
-                </div>
-                <div class="flex items-center gap-1.5 mt-2">
-                  <div class="w-2 h-2 rounded-full bg-yellow-400"></div>
-                  <span class="text-yellow-400 font-medium">Write-back: DISABLED (Sandbox)</span>
-                </div>
-              </div>
-              <button @click="toast('Agent config for '+dept.label+' — coming soon', 'info')" class="w-full text-xs py-1.5 rounded-lg text-gray-500 hover:text-white transition-colors" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08)">Configure Agent</button>
-            </div>
-          </template>
-        </div>
-      </div>
-
-    </div><!-- /content area -->
-  </main>
-</div>
-
-<!-- ═══════════════════════════════════════════ -->
-<!-- MORNING BRIEF MODAL                         -->
-<!-- ═══════════════════════════════════════════ -->
-<div class="fixed inset-0 z-50 flex items-center justify-center p-4" x-show="showMorningBrief" @click.self="showMorningBrief=false" style="display:none" x-transition>
-  <div class="overlay" @click="showMorningBrief=false"></div>
-  <div class="relative z-10 w-full max-w-2xl card p-6 max-h-[90vh] overflow-y-auto" style="background:#231F20">
-    <div class="flex items-center justify-between mb-5">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl morning-glow flex items-center justify-center">
-          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#ACBF37" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-        </div>
-        <div>
-          <div class="font-display font-bold text-xl text-white">Morning Executive Brief</div>
-          <div class="text-xs text-gray-500" x-text="'Generated ' + currentTime"></div>
-        </div>
-      </div>
-      <button @click="showMorningBrief=false" class="text-gray-500 hover:text-white transition-colors text-xl">×</button>
-    </div>
-
-    <!-- Green Lights Grid -->
-    <div class="grid grid-cols-3 gap-3 mb-5">
-      <template x-for="light in morningLights" :key="light.label">
-        <div class="rounded-xl p-3 text-center border" :class="light.ok ? 'bg-brand-green/8 border-brand-green/20' : 'bg-red-500/8 border-red-500/20'">
-          <div class="text-2xl mb-1" x-text="light.ok ? '✅' : '⚠️'"></div>
-          <div class="text-xs font-semibold text-white" x-text="light.label"></div>
-          <div class="text-xs text-gray-500 mt-0.5" x-text="light.value"></div>
-        </div>
-      </template>
-    </div>
-
-    <!-- Summary Text -->
-    <div class="space-y-3 mb-5">
-      <div class="text-sm font-semibold text-brand-orange">Key Observations</div>
-      <template x-for="obs in morningObservations" :key="obs">
-        <div class="flex items-start gap-2 text-sm text-gray-300">
-          <span class="text-brand-orange mt-0.5 flex-shrink-0">›</span>
-          <span x-text="obs"></span>
-        </div>
-      </template>
-    </div>
-
-    <div class="flex gap-3">
-      <button @click="sendBriefEmail()" class="flex-1 py-2.5 rounded-xl bg-brand-orange/15 border border-brand-orange/30 text-brand-orange font-semibold text-sm hover:bg-brand-orange/25 transition-colors">Send to Chris via Email</button>
-      <button @click="sendBriefSlack()" class="py-2.5 px-4 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-medium text-sm hover:bg-white/10 transition-colors">Post to Slack</button>
-    </div>
-  </div>
-</div>
-
-<!-- TOAST Notification -->
-<div class="fixed bottom-5 right-5 z-50 space-y-2" id="toastContainer">
-</div>
-
-<!-- NOTIFICATION PANEL -->
-<div class="fixed top-14 right-4 z-40 w-80 card shadow-2xl" x-show="showNotif" @click.outside="showNotif=false" style="display:none" x-transition>
-  <div class="p-3 border-b border-white/5 flex items-center justify-between">
-    <span class="font-semibold text-sm">Notifications</span>
-    <button @click="clearAll()" class="text-xs text-gray-500 hover:text-white transition-colors">Clear all</button>
-  </div>
-  <div class="max-h-72 overflow-y-auto">
-    <template x-for="n in notifications" :key="n.id">
-      <div class="alert-row" :class="n.severity">
-        <div class="text-xs font-medium text-white" x-text="n.title"></div>
-        <div class="text-xs text-gray-500 mt-0.5" x-text="n.detail"></div>
-        <div class="text-xs text-gray-600 mt-0.5" x-text="n.time"></div>
-      </div>
-    </template>
-  </div>
-</div>
-
-<!-- SETTINGS MODAL -->
-<div class="fixed inset-0 z-50 flex items-center justify-center p-4" x-show="showSettings" @click.self="showSettings=false" style="display:none" x-transition>
-  <div class="overlay"></div>
-  <div class="relative z-10 w-full max-w-lg card p-6 max-h-screen overflow-y-auto" style="background:#231F20">
-    <div class="flex items-center justify-between mb-2">
-      <div class="font-display font-bold text-xl text-white">System Status</div>
-      <button @click="showSettings=false" class="text-gray-500 hover:text-white text-xl">×</button>
-    </div>
-    <p class="text-xs text-gray-500 mb-5">All credentials live in backend environment variables. No API keys, passwords, or tokens are stored in this browser.</p>
-
-    <!-- Status Cards -->
-    <div class="space-y-2 mb-5">
-      <template x-for="s in systemStatus" :key="s.key">
-        <div class="status-card flex items-center justify-between">
-          <div>
-            <div class="text-sm font-medium text-white" x-text="s.label"></div>
-            <div class="text-xs text-gray-500 mt-0.5" x-text="s.detail"></div>
-          </div>
-          <div class="flex items-center gap-2 flex-shrink-0 ml-4">
-            <div class="pulse-dot flex-shrink-0" :class="s.status==='ok'?'bg-brand-green':s.status==='warn'?'bg-yellow-400':'bg-red-500'"></div>
-            <span class="text-xs font-semibold" :class="s.status==='ok'?'text-brand-green':s.status==='warn'?'text-yellow-400':'text-red-400'" x-text="s.statusLabel"></span>
-          </div>
-        </div>
-      </template>
-    </div>
-
-    <!-- Safe preference -->
-    <div class="border-t border-white/5 pt-4 mb-4">
-      <div class="flex items-center justify-between">
-        <label class="text-xs text-gray-400">Morning Brief Time</label>
-        <input type="time" x-model="settings.briefTime" class="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-brand-orange/50"/>
-      </div>
-    </div>
-
-    <!-- Sandbox notice -->
-    <div class="p-3 rounded-xl" style="background:rgba(255,103,31,0.06);border:1px solid rgba(255,103,31,0.15)">
-      <div class="text-xs font-semibold text-brand-orange mb-1">Acumatica Write-Back</div>
-      <div class="text-xs text-gray-400">Currently in <span class="text-yellow-400 font-semibold">SANDBOX MODE</span> — no live ERP writes. Contact backend admin to enable production mode.</div>
-    </div>
-
-    <button @click="saveSettings()" class="mt-4 w-full py-2.5 rounded-xl bg-brand-orange text-white font-bold text-sm hover:bg-brand-deep-orange transition-colors">Save Preferences</button>
-  </div>
-</div>
-
-<script>
-function app() {
-  return {
-    // State
-    activeView: 'home',
-    activeRole: 'chris',
-    sidebarOpen: false,
-    showMorningBrief: false,
-    showNotif: false,
-    showSettings: false,
-    alertTab: 'all',
-    inventorySearch: '',
-    inventoryFilter: 'all',
-    acuStatus: 'connected',
-    lastSync: '2 min ago',
-    currentTime: new Date().toLocaleString(),
-    alertCount: 4,
-
-    settings: {
-      briefTime: '06:00'
-    },
-
-    // Connection status cards — credentials live in backend .env only
-    systemStatus: [
-      { key: 'acumatica', label: 'Acumatica Connection', detail: 'Proxied via /api/acumatica · Sandbox mode active', status: 'warn', statusLabel: 'Sandbox' },
-      { key: 'proxy', label: 'API Proxy', detail: 'Backend /api/proxy — all ERP calls routed server-side', status: 'ok', statusLabel: 'Active' },
-      { key: 'sheets', label: 'Google Sheets Logging', detail: 'Ops log spreadsheet — auto-sync on write events', status: 'ok', statusLabel: 'Connected' },
-      { key: 'obsidian', label: 'Obsidian Logging', detail: 'Local vault via backend bridge at /api/log/obsidian', status: 'warn', statusLabel: 'Config needed' },
-      { key: 'rocky', label: 'Rocky Agent', detail: 'Production readiness + reorder watcher (stub)', status: 'warn', statusLabel: 'Stub only' },
-      { key: 'simon', label: 'Simon Archive', detail: 'Long-term decision & SOP archive agent (stub)', status: 'warn', statusLabel: 'Stub only' },
-    ],
-
-    // Chat state
-    chatMessages: [],
-    chatInput: '',
-    chatLoading: false,
-    chatSource: 'backend',
-    chatSessionId: 'session-' + Date.now(),
-    chatMeta: { dept: '', urgency: 'normal', followUp: false },
-    obsidianLogs: [],
-
-    // Department intelligence structure
-    departments: [
-      { id: 'executive',   label: 'Executive',          icon: '👑', description: 'Chris + leadership decisions',       agent: { sources: ['Acumatica', 'Alerts'],        outputs: ['Morning Brief', 'Slack'],     writeback: false } },
-      { id: 'finance-ar',  label: 'Finance AR',         icon: '💰', description: 'AR, collections, cash flow',        agent: { sources: ['Acumatica', 'Sheets'],        outputs: ['AR Report', 'Alerts'],        writeback: false } },
-      { id: 'production',  label: 'Production',         icon: '🏭', description: 'MOs, runs, yield tracking',         agent: { sources: ['Acumatica', 'Chad Sheets'],   outputs: ['Yield Log', 'Blocks'],        writeback: false } },
-      { id: 'inventory',   label: 'Inventory',          icon: '📦', description: 'SKU levels, ATS, reorders',         agent: { sources: ['Acumatica'],                 outputs: ['Reorder Alerts', 'PO Drafts'], writeback: false } },
-      { id: 'sales',       label: 'Sales',              icon: '📈', description: 'SOs, forecast, retailer signals',   agent: { sources: ['Acumatica', 'CRM'],           outputs: ['Forecast Alerts', 'SO Status'], writeback: false } },
-      { id: 'marketing',   label: 'Marketing',          icon: '📣', description: 'Campaigns, brand, launches',        agent: { sources: ['Sheets', 'Slack'],            outputs: ['Campaign Log', 'Obsidian'],   writeback: false } },
-      { id: 'vendors',     label: 'Vendors',            icon: '🤝', description: 'Supplier contacts, PO tracking',    agent: { sources: ['Acumatica', 'Email'],         outputs: ['PO Status', 'Alerts'],        writeback: false } },
-      { id: 'shepherds',   label: 'Shepherds Receipts', icon: '🧾', description: 'Receipt capture + form routing',    agent: { sources: ['Receipt Form', 'Sheets'],     outputs: ['Acumatica', 'Obsidian'],      writeback: false } },
-      { id: 'sops',        label: 'SOPs',               icon: '📐', description: 'Standard operating procedures',     agent: { sources: ['Chat Logs', 'Obsidian'],      outputs: ['SOP Drafts', 'Obsidian'],     writeback: false } },
-      { id: 'skills',      label: 'Skills',             icon: '🧠', description: 'Team skill capture + training',     agent: { sources: ['Chat Logs', 'Obsidian'],      outputs: ['Skill Nodes', 'Obsidian'],    writeback: false } },
-      { id: 'people',      label: 'People',             icon: '👥', description: 'Team directory, roles, contacts',   agent: { sources: ['Sheets', 'Slack'],            outputs: ['People Log', 'Alerts'],       writeback: false } },
-      { id: 'agent-logs',  label: 'Agent Logs',         icon: '🤖', description: 'AI action history, audit trail',    agent: { sources: ['All Agents'],                outputs: ['Obsidian', 'Sheets'],         writeback: false } },
-      { id: 'decisions',   label: 'Decisions',          icon: '⚖️', description: 'Key decisions + rationale log',     agent: { sources: ['Chat', 'Obsidian'],           outputs: ['Decision Log', 'Simon'],      writeback: false } },
-      { id: 'follow-ups',  label: 'Follow Ups',         icon: '🔔', description: 'Pending items + reminders',         agent: { sources: ['Chat', 'Alerts'],             outputs: ['Slack', 'Email'],             writeback: false } },
-    ],
-
-    agentAnalysis: 'Protein Crunch Berry SKU-042 is tracking 23% below forecast for the week ending Jun 14. At current velocity, you will be short ~840 units against open SO-10482 (retailer: Outdoor World). Recommend creating a supplemental MO or negotiating partial fulfillment window. Raw whey protein stock is at 78% of reorder point — a PO to FoodGrade Ingredients Co. should be initiated within 48 hours to avoid production stoppage.',
-
-    roles: [
-      { id: 'chris', label: 'Chris' },
-      { id: 'larry', label: 'Larry' },
-      { id: 'chad', label: 'Chad' },
-      { id: 'sales', label: 'Sales' },
-    ],
-
-    navItems: [
-      { id: 'home', label: 'Executive Summary', sub: 'Overview & KPIs', alerts: 0, roles: ['chris','larry','chad','sales'],
-        icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>' },
-      { id: 'alerts', label: 'Sales → Production', sub: 'Forecast vs Actual alerts', alerts: 3, roles: ['chris','larry','sales'],
-        icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>' },
-      { id: 'yield', label: 'Yield Trending', sub: 'Batch analytics + Chad data', alerts: 1, roles: ['chris','larry','chad'],
-        icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>' },
-      { id: 'production', label: 'Production Readiness', sub: 'Run status + ingredients', alerts: 2, roles: ['chris','larry','chad'],
-        icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>' },
-      { id: 'ordering', label: 'Ordering Intelligence', sub: 'POs + Market signals', alerts: 0, roles: ['chris','larry'],
-        icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>' },
-      { id: 'inventory', label: 'Inventory View', sub: 'Sales team — ATS status', alerts: 0, roles: ['chris','larry','chad','sales'],
-        icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>' },
-      { id: 'agents', label: 'AI Agents', sub: 'Configure + monitor', alerts: 0, roles: ['chris','larry'],
-        icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>' },
-      { id: 'chat', label: 'Chris Chat', sub: 'AI assistant · logged', alerts: 0, roles: ['chris'],
-        icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>' },
-      { id: 'departments', label: 'Departments', sub: 'Intelligence structure', alerts: 0, roles: ['chris','larry'],
-        icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>' },
-    ],
-
-    agents: [
-      { id: 'sales-intel', name: 'Sales Intelligence', status: 'running', lastAction: 'Analyzing forecast variance...' },
-      { id: 'prod-ready', name: 'Production Ready', status: 'idle', lastAction: 'Last run: 14 min ago' },
-      { id: 'reorder', name: 'Reorder Agent', status: 'running', lastAction: 'Monitoring 3 ingredients...' },
-      { id: 'morning-brief', name: 'Morning Brief', status: 'idle', lastAction: 'Scheduled 6:00 AM' },
-    ],
-
-    agentDetails: [
-      {
-        id: 'sales-intel', name: 'Sales Intelligence Agent', icon: '📊', status: 'running', role: 'Forecast Analysis • Acumatica SO',
-        description: 'Continuously compares open Sales Orders vs production capacity. Flags SKUs trending below forecast. Can create internal alerts, SMS ops team, and draft supplemental MOs in Acumatica.',
-        recentActions: ['Analyzed 24 open SOs vs MO schedule', 'Flagged SKU-042 at -23% forecast', 'Drafted SMS to Larry re: Protein Crunch Berry', 'Updated alert feed with 3 new items']
-      },
-      {
-        id: 'prod-ready', name: 'Production Readiness Agent', icon: '🏭', status: 'idle', role: 'MO Readiness • Ingredient Check',
-        description: 'Before each scheduled run, verifies ingredient availability, equipment status, and operator assignment in Acumatica. Sets MO status to READY, PENDING, or BLOCKED. Notifies Larry via SMS if blocked.',
-        recentActions: ['Checked 6 scheduled runs', 'Set MO-20441 status → READY', 'Flagged low maltodextrin on MO-20443 → BLOCKED', 'Notified Larry via SMS']
-      },
-      {
-        id: 'reorder', name: 'Reorder Intelligence Agent', icon: '📦', status: 'running', role: 'Inventory Monitoring • PO Creation',
-        description: 'Watches ingredient on-hand vs reorder points in Acumatica. Consults market price signals. Drafts PO recommendations and — upon approval — creates POs directly in Acumatica.',
-        recentActions: ['Monitoring 12 ingredients in Acumatica', 'Triggered reorder alert: Whey Protein Isolate', 'Fetched 3 vendor quotes via email', 'PO draft created for Chris approval']
-      },
-      {
-        id: 'morning-brief', name: 'Morning Brief Agent', icon: '☀️', status: 'idle', role: 'Executive Summary • Scheduled 6 AM',
-        description: 'Runs at 6 AM daily. Pulls overnight activity from Acumatica (shipments, new SOs, production completions), computes green/yellow/red lights across all KPI areas, and emails executive summary to Chris.',
-        recentActions: ['Last brief sent: Jun 8 at 6:00 AM', 'Delivered to: chris@peakrefuel.com', '4 green lights, 1 yellow, 0 red', 'Slack summary posted to #ops-daily']
-      },
-      {
-        id: 'market-ear', name: 'Market Listening Agent', icon: '📡', status: 'idle', role: 'Price Monitoring • Competitor Watch',
-        description: 'Monitors ingredient commodity prices, competitor product launches, and retailer reorder patterns. Surfaces signals that should influence purchase timing and promotional strategy.',
-        recentActions: ['Whey protein futures up 4.2% this week', 'Competitor SKU launched in Pacific NW market', 'Retailer Outdoor World reorder cycle detected']
-      },
-      {
-        id: 'comms', name: 'Communications Agent', icon: '💬', status: 'idle', role: 'SMS • Email • Slack routing',
-        description: 'Routes notifications to the right people by role. Chris gets executive email summaries. Larry gets SMS for operational blockers. Chad gets push/SMS for mobile alerts. Sales team gets Slack digests.',
-        recentActions: ['SMS sent to Larry: 3 blocked runs', 'Email to Chris: morning brief', 'Slack post: inventory low — 2 SKUs', 'Push to Chad: yield report ready']
-      },
-    ],
-
-    kpis: [
-      { label: 'Active SOs', value: '24', color: 'text-white', trend: 12 },
-      { label: 'Open MOs', value: '6', color: 'text-brand-orange', trend: -8 },
-      { label: 'Avg Yield', value: '91.4%', color: 'text-brand-green', trend: 2.1 },
-      { label: 'ATS Units', value: '18,240', color: 'text-white', trend: -5.3 },
-    ],
-
-    liveAlerts: [
-      { id: 1, severity: 'critical', title: 'SKU-042 Forecast Gap', badge: 'CRITICAL', badgeColor: 'red', detail: 'Protein Crunch Berry tracking -23% vs forecast. SO-10482 at risk.', time: '4m ago', sku: 'SKU-042', forecast: '3,600', actual: '2,772', delta: -23, canAcu: true, acuAction: 'Create MO' },
-      { id: 2, severity: 'critical', title: 'Low Whey Protein Stock', badge: 'CRITICAL', badgeColor: 'red', detail: 'On hand: 840 lbs. Reorder point: 1,200 lbs. 2 runs at risk.', time: '12m ago', sku: 'RM-WPI-001', forecast: null, actual: null, delta: null, canAcu: true, acuAction: 'Create PO' },
-      { id: 3, severity: 'warning', title: 'MO-20443 BLOCKED', badge: 'BLOCKED', badgeColor: 'yellow', detail: 'Maltodextrin stock insufficient. Run scheduled Jun 10.', time: '28m ago', sku: 'MO-20443', canAcu: true, acuAction: 'View MO' },
-      { id: 4, severity: 'warning', title: 'Yield Drop — SKU-017', badge: 'WARNING', badgeColor: 'yellow', detail: 'Last 3 batches averaging 87.2% vs 92% target.', time: '1h ago', sku: 'SKU-017', forecast: '92%', actual: '87.2%', delta: -4.8, canAcu: false },
-      { id: 5, severity: 'info', title: 'New SO Received', badge: 'NEW', badgeColor: 'orange', detail: 'SO-10489 — Retailer: Summit Sports. $14,200 order.', time: '2h ago', sku: 'SO-10489', canAcu: true, acuAction: 'View SO' },
-      { id: 6, severity: 'ok', title: 'MO-20440 Complete', badge: 'DONE', badgeColor: 'green', detail: 'Chocolate Fudge run completed. 4,200 units to inventory.', time: '3h ago', sku: 'MO-20440', canAcu: false },
-      { id: 7, severity: 'info', title: 'PO-5521 Confirmed', badge: 'CONFIRMED', badgeColor: 'orange', detail: 'FoodGrade Ingredients: Oat Flour 2,000 lbs. ETA Jun 11.', time: '5h ago', sku: 'PO-5521', canAcu: true, acuAction: 'View PO' },
-      { id: 8, severity: 'warning', title: 'SKU-033 Reorder Window', badge: 'REORDER', badgeColor: 'yellow', detail: 'Vanilla Cream Bar approaching reorder threshold.', time: '6h ago', sku: 'SKU-033', canAcu: true, acuAction: 'Create PO' },
-    ],
-
-    notifications: [],
-
-    yieldMetrics: [
-      { sku: 'Protein Crunch Berry', yield: 91.4, target: 92, trend: -0.6, status: 'NEAR TARGET', statusColor: 'yellow' },
-      { sku: 'Chocolate Fudge Bar', yield: 93.8, target: 92, trend: 1.8, status: 'ON TARGET', statusColor: 'green' },
-      { sku: 'Vanilla Cream Bar', yield: 87.2, target: 92, trend: -4.8, status: 'BELOW', statusColor: 'red' },
-      { sku: 'Mango Blast', yield: 94.1, target: 91, trend: 3.1, status: 'ABOVE TARGET', statusColor: 'green' },
-      { sku: 'PB Power Bar', yield: 90.2, target: 91, trend: -0.8, status: 'NEAR TARGET', statusColor: 'yellow' },
-      { sku: 'Mixed Berry', yield: 92.5, target: 91, trend: 1.5, status: 'ON TARGET', statusColor: 'green' },
-    ],
-
-    batchLog: [
-      { batch: 'B-2024-0601', sku: 'Chocolate Fudge Bar', date: 'Jun 8', input: 500, output: 469, yield: 93.8, target: 92, operator: 'Chad L.' },
-      { batch: 'B-2024-0598', sku: 'Vanilla Cream Bar', date: 'Jun 7', input: 400, output: 349, yield: 87.3, target: 92, operator: 'Chad L.' },
-      { batch: 'B-2024-0595', sku: 'Protein Crunch Berry', date: 'Jun 6', input: 600, output: 548, yield: 91.3, target: 92, operator: 'Chad L.' },
-      { batch: 'B-2024-0591', sku: 'Mango Blast', date: 'Jun 5', input: 350, output: 329, yield: 94.0, target: 91, operator: 'Chad L.' },
-      { batch: 'B-2024-0588', sku: 'PB Power Bar', date: 'Jun 4', input: 500, output: 451, yield: 90.2, target: 91, operator: 'Chad L.' },
-      { batch: 'B-2024-0584', sku: 'Vanilla Cream Bar', date: 'Jun 3', input: 400, output: 347, yield: 86.8, target: 92, operator: 'Chad L.' },
-    ],
-
-    productionRuns: [
-      {
-        id: 1, sku: 'Protein Crunch Berry', runId: 'MO-20445', status: 'READY', scheduled: 'Jun 9, 7:00 AM',
-        batchSize: 600, estOutput: 5480, moNumber: 'MO-20445', priority: 'HIGH',
-        ingredients: [
-          { name: 'Whey Protein Isolate', qty: '420 lbs ✓', status: 'ok' },
-          { name: 'Oat Flour', qty: '80 lbs ✓', status: 'ok' },
-          { name: 'Honey Granules', qty: '60 lbs ✓', status: 'ok' },
-          { name: 'Berry Flavoring', qty: '18 lbs ✓', status: 'ok' },
-        ]
-      },
-      {
-        id: 2, sku: 'Vanilla Cream Bar', runId: 'MO-20443', status: 'BLOCKED', scheduled: 'Jun 10, 7:00 AM',
-        batchSize: 500, estOutput: 4400, moNumber: 'MO-20443', priority: 'HIGH',
-        ingredients: [
-          { name: 'Whey Protein Isolate', qty: '350 lbs ✓', status: 'ok' },
-          { name: 'Maltodextrin', qty: '12 lbs (need 80)', status: 'out' },
-          { name: 'Vanilla Extract', qty: '15 lbs ✓', status: 'ok' },
-          { name: 'Coconut Oil', qty: '45 lbs — LOW', status: 'low' },
-        ]
-      },
-      {
-        id: 3, sku: 'Chocolate Fudge Bar', runId: 'MO-20446', status: 'PENDING', scheduled: 'Jun 11, 7:00 AM',
-        batchSize: 500, estOutput: 4690, moNumber: 'MO-20446', priority: 'MED',
-        ingredients: [
-          { name: 'Whey Protein Isolate', qty: '350 lbs ✓', status: 'ok' },
-          { name: 'Cocoa Powder', qty: '75 lbs ✓', status: 'ok' },
-          { name: 'Cane Sugar', qty: '55 lbs — LOW', status: 'low' },
-          { name: 'Dark Choc Chips', qty: '40 lbs ✓', status: 'ok' },
-        ]
-      },
-      {
-        id: 4, sku: 'Mango Blast Bar', runId: 'MO-20447', status: 'READY', scheduled: 'Jun 12, 7:00 AM',
-        batchSize: 350, estOutput: 3290, moNumber: 'MO-20447', priority: 'LOW',
-        ingredients: [
-          { name: 'Whey Protein Isolate', qty: '245 lbs ✓', status: 'ok' },
-          { name: 'Oat Flour', qty: '50 lbs ✓', status: 'ok' },
-          { name: 'Mango Flavoring', qty: '22 lbs ✓', status: 'ok' },
-          { name: 'Citric Acid', qty: '8 lbs ✓', status: 'ok' },
-        ]
-      },
-    ],
-
-    poRecommendations: [
-      { ingredient: 'Whey Protein Isolate', onHand: 840, reorder: 1200, recQty: 2000, unit: 'lbs', vendor: 'FoodGrade Ingr. Co.', cost: 6400, urgency: 'URGENT', urgencyColor: 'red' },
-      { ingredient: 'Maltodextrin', onHand: 12, reorder: 100, recQty: 300, unit: 'lbs', vendor: 'NutriSource LLC', cost: 480, urgency: 'URGENT', urgencyColor: 'red' },
-      { ingredient: 'Coconut Oil', onHand: 45, reorder: 60, recQty: 120, unit: 'lbs', vendor: 'PureOil Suppliers', cost: 720, urgency: 'HIGH', urgencyColor: 'yellow' },
-      { ingredient: 'Cane Sugar', onHand: 55, reorder: 80, recQty: 200, unit: 'lbs', vendor: 'AgriSweet Co.', cost: 280, urgency: 'HIGH', urgencyColor: 'yellow' },
-      { ingredient: 'Oat Flour', onHand: 180, reorder: 150, recQty: 400, unit: 'lbs', vendor: 'GrainCraft Inc.', cost: 560, urgency: 'NORMAL', urgencyColor: 'green' },
-      { ingredient: 'Berry Flavoring', onHand: 28, reorder: 20, recQty: 50, unit: 'lbs', vendor: 'FlavorTech USA', cost: 1800, urgency: 'NORMAL', urgencyColor: 'green' },
-    ],
-
-    marketSignals: [
-      { id: 1, icon: '📈', title: 'Whey Protein Futures +4.2%', detail: 'CBOT futures up this week. Buy window closing.', impact: 4 },
-      { id: 2, icon: '🌾', title: 'Oat Flour — Stable', detail: 'Seasonal supply ample through Q3.', impact: -1 },
-      { id: 3, icon: '🏪', title: 'Outdoor World Reorder Signal', detail: 'Retailer pattern suggests PO incoming within 5 days.', impact: 8 },
-      { id: 4, icon: '🥊', title: 'Competitor Launch Detected', detail: 'New berry flavor spotted in Pacific NW retail.', impact: -3 },
-    ],
-
-    inventoryItems: [
-      { sku: 'SKU-042', name: 'Protein Crunch Berry', flavor: '12 ct / 2.5oz', onHand: 2772, inProd: 5480, ats: 2772, maxStock: 8000, status: 'LOW', statusColor: 'badge-yellow' },
-      { sku: 'SKU-017', name: 'Vanilla Cream Bar', flavor: '12 ct / 2.1oz', onHand: 1840, inProd: 4400, ats: 1840, maxStock: 7000, status: 'LOW', statusColor: 'badge-yellow' },
-      { sku: 'SKU-033', name: 'Chocolate Fudge Bar', flavor: '12 ct / 2.8oz', onHand: 4200, inProd: 4690, ats: 4200, maxStock: 8000, status: 'IN STOCK', statusColor: 'badge-green' },
-      { sku: 'SKU-058', name: 'Mango Blast Bar', flavor: '12 ct / 2.2oz', onHand: 680, inProd: 3290, ats: 680, maxStock: 5000, status: 'LOW', statusColor: 'badge-yellow' },
-      { sku: 'SKU-071', name: 'PB Power Bar', flavor: '12 ct / 2.6oz', onHand: 3100, inProd: 0, ats: 3100, maxStock: 6000, status: 'IN STOCK', statusColor: 'badge-green' },
-      { sku: 'SKU-085', name: 'Mixed Berry Bar', flavor: '12 ct / 2.4oz', onHand: 0, inProd: 0, ats: 0, maxStock: 5000, status: 'OUT', statusColor: 'badge-red' },
-      { sku: 'SKU-091', name: 'Lemon Zest Bar', flavor: '12 ct / 2.3oz', onHand: 5600, inProd: 0, ats: 5600, maxStock: 6000, status: 'IN STOCK', statusColor: 'badge-green' },
-      { sku: 'SKU-102', name: 'Caramel Crunch', flavor: '12 ct / 2.7oz', onHand: 920, inProd: 0, ats: 920, maxStock: 5000, status: 'LOW', statusColor: 'badge-yellow' },
-    ],
-
-    productionETAs: [
-      { sku: 'Protein Crunch Berry', mo: 'MO-20445', qty: 5480, start: 'Jun 9', eta: 'Jun 9', days: 1, status: 'IN PROD', statusColor: 'orange' },
-      { sku: 'Vanilla Cream Bar', mo: 'MO-20443', qty: 4400, start: 'Jun 10', eta: 'Jun 10', days: 2, status: 'BLOCKED', statusColor: 'red' },
-      { sku: 'Chocolate Fudge Bar', mo: 'MO-20446', qty: 4690, start: 'Jun 11', eta: 'Jun 11', days: 3, status: 'PENDING', statusColor: 'yellow' },
-      { sku: 'Mango Blast Bar', mo: 'MO-20447', qty: 3290, start: 'Jun 12', eta: 'Jun 12', days: 4, status: 'SCHEDULED', statusColor: 'gray' },
-    ],
-
-    acuLinks: [
-      { label: 'Production Orders', sub: 'Mfg → MOs', icon: '🏭', url: '/manufacturing/orders' },
-      { label: 'Sales Orders', sub: 'Sales → SOs', icon: '📋', url: '/sales/orders' },
-      { label: 'Purchase Orders', sub: 'Purchasing → POs', icon: '📦', url: '/purchasing/orders' },
-      { label: 'Inventory', sub: 'Stock → Items', icon: '📊', url: '/inventory' },
-      { label: 'Item Receipts', sub: 'PO Receipts', icon: '✅', url: '/receipts' },
-      { label: 'Bill of Materials', sub: 'Mfg → BOMs', icon: '📐', url: '/bom' },
-      { label: 'Reports', sub: 'Analytics', icon: '📈', url: '/reports' },
-      { label: 'Work Centers', sub: 'Capacity', icon: '⚙️', url: '/workcenter' },
-    ],
-
-    morningLights: [
-      { label: 'Production', value: '4 runs on track', ok: true },
-      { label: 'Inventory', value: '6/8 SKUs healthy', ok: false },
-      { label: 'Open Orders', value: '24 SOs active', ok: true },
-      { label: 'Yield', value: 'Avg 91.4% — near target', ok: true },
-      { label: 'Purchasing', value: '2 urgent POs needed', ok: false },
-      { label: 'Cash Position', value: 'Acumatica current', ok: true },
-    ],
-
-    morningObservations: [
-      'Whey Protein Isolate is below reorder point — PO needed within 48 hours to protect 2 scheduled runs.',
-      'SKU-042 (Protein Crunch Berry) is tracking 23% below weekly forecast. SO-10482 may face partial fulfillment.',
-      'MO-20440 completed successfully overnight: 4,200 Chocolate Fudge units added to inventory.',
-      'Vanilla Cream Bar yield has dropped 4.8% from target over last 3 batches. Chad should review mixing parameters.',
-      'New SO received from Summit Sports ($14,200). Production capacity can accommodate with current schedule.',
-    ],
-
-    charts: {},
-
-    get filteredAlerts() {
-      if (this.alertTab === 'all') return this.liveAlerts;
-      if (this.alertTab === 'critical') return this.liveAlerts.filter(a => a.severity === 'critical');
-      if (this.alertTab === 'forecast') return this.liveAlerts.filter(a => a.delta !== undefined && a.delta !== null);
-      if (this.alertTab === 'reorder') return this.liveAlerts.filter(a => a.acuAction === 'Create PO');
-      return this.liveAlerts;
-    },
-
-    get filteredInventory() {
-      let items = this.inventoryItems;
-      if (this.inventorySearch) {
-        const q = this.inventorySearch.toLowerCase();
-        items = items.filter(i => i.sku.toLowerCase().includes(q) || i.name.toLowerCase().includes(q));
-      }
-      if (this.inventoryFilter === 'in-stock') items = items.filter(i => i.status === 'IN STOCK');
-      if (this.inventoryFilter === 'low') items = items.filter(i => i.status === 'LOW');
-      if (this.inventoryFilter === 'out') items = items.filter(i => i.status === 'OUT');
-      return items;
-    },
-
-    get currentViewLabel() {
-      const item = this.navItems.find(n => n.id === this.activeView);
-      return item ? item.label : 'Dashboard';
-    },
-
-    get currentViewSub() {
-      const item = this.navItems.find(n => n.id === this.activeView);
-      return item ? item.sub : '';
-    },
-
-    canAccess(viewId) {
-      const item = this.navItems.find(n => n.id === viewId);
-      if (!item) return true;
-      return item.roles.includes(this.activeRole);
-    },
-
-    alertIcon(severity) {
-      const icons = {
-        critical: '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#ef4444" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>',
-        warning: '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#fbbf24" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>',
-        ok: '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#ACBF37" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>',
-        info: '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#FF671F" stroke-width="2"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
-      };
-      return icons[severity] || icons.info;
-    },
-
-    setView(id) {
-      this.activeView = id;
-      this.sidebarOpen = false;
-      this.$nextTick(() => this.initCharts());
-    },
-
-    init() {
-      this.notifications = [...this.liveAlerts.slice(0, 5)];
-      this.$nextTick(() => this.initCharts());
-      setInterval(() => { this.lastSync = 'just now'; setTimeout(() => { this.lastSync = '1 min ago'; }, 60000); }, 300000);
-    },
-
-    initCharts() {
-      Chart.defaults.color = '#6b6460';
-      Chart.defaults.borderColor = 'rgba(255,255,255,0.05)';
-
-      // Forecast chart
-      const fc = document.getElementById('forecastChart');
-      if (fc && !this.charts.forecast) {
-        this.charts.forecast = new Chart(fc, {
-          type: 'line',
-          data: {
-            labels: ['Wk-7','Wk-6','Wk-5','Wk-4','Wk-3','Wk-2','Wk-1','This Wk'],
-            datasets: [
-              { label: 'Forecast', data: [3200,3400,3600,3500,3800,3600,3600,3600], borderColor: '#FF671F', backgroundColor: 'rgba(255,103,31,0.08)', borderWidth: 2, tension: 0.4, fill: true, pointRadius: 3 },
-              { label: 'Actual', data: [3180,3350,3520,3390,3710,3480,3200,2772], borderColor: '#ACBF37', backgroundColor: 'rgba(172,191,55,0.05)', borderWidth: 2, tension: 0.4, fill: false, pointRadius: 3 },
-              { label: 'Capacity', data: [4000,4000,4000,4000,4000,4000,4000,4000], borderColor: 'rgba(99,179,237,0.4)', borderWidth: 1, borderDash: [5,5], tension: 0, fill: false, pointRadius: 0 },
-            ]
-          },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(255,255,255,0.04)' } }, x: { grid: { display: false } } } }
-        });
-      }
-
-      // Yield trend chart
-      const yt = document.getElementById('yieldTrendChart');
-      if (yt && !this.charts.yield) {
-        this.charts.yield = new Chart(yt, {
-          type: 'line',
-          data: {
-            labels: ['W1','W2','W3','W4','W5','W6','W7','W8','W9','W10','W11','W12'],
-            datasets: [
-              { label: 'Crunch Berry', data: [91,90.5,91.2,91.8,92,91.4,91.3,91.5,91.2,91.4,91.3,91.4], borderColor: '#FF671F', borderWidth: 2, tension: 0.4, pointRadius: 2 },
-              { label: 'Choc Fudge', data: [92,92.5,93,93.2,93.5,93.8,94,93.9,93.8,94.1,93.7,93.8], borderColor: '#ACBF37', borderWidth: 2, tension: 0.4, pointRadius: 2 },
-              { label: 'Vanilla Cream', data: [91,90,89.5,89,88.5,88,87.8,87.5,87.3,87.2,87.0,87.2], borderColor: '#ef4444', borderWidth: 2, tension: 0.4, pointRadius: 2 },
-            ]
-          },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }, scales: { y: { min: 84, max: 96, grid: { color: 'rgba(255,255,255,0.04)' } }, x: { grid: { display: false } } } }
-        });
-      }
-
-      // Yield scatter
-      const ys = document.getElementById('yieldScatterChart');
-      if (ys && !this.charts.scatter) {
-        this.charts.scatter = new Chart(ys, {
-          type: 'scatter',
-          data: {
-            datasets: [{
-              label: 'Batch Yield',
-              data: [{x:300,y:91.2},{x:350,y:91.8},{x:400,y:92.1},{x:450,y:92.8},{x:500,y:93.1},{x:550,y:93.4},{x:600,y:93.7},{x:400,y:87.1},{x:450,y:87.5},{x:500,y:87.9},{x:350,y:94.1},{x:500,y:90.2}],
-              backgroundColor: 'rgba(255,103,31,0.6)', pointRadius: 6,
-            }]
-          },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { title: { display: true, text: 'Batch Size (lbs)', color: '#6b6460', font:{size:10} }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { title: { display: true, text: 'Yield %', color: '#6b6460', font:{size:10} }, min: 84, max: 96, grid: { color: 'rgba(255,255,255,0.04)' } } } }
-        });
-      }
-
-      // Spend chart
-      const sp = document.getElementById('spendChart');
-      if (sp && !this.charts.spend) {
-        this.charts.spend = new Chart(sp, {
-          type: 'bar',
-          data: {
-            labels: ['Jan','Feb','Mar','Apr','May','Jun'],
-            datasets: [
-              { label: 'Protein', data: [8200,7800,9100,8500,9400,6400], backgroundColor: 'rgba(255,103,31,0.7)' },
-              { label: 'Oats/Grains', data: [1200,1100,1300,1200,1400,560], backgroundColor: 'rgba(172,191,55,0.7)' },
-              { label: 'Flavoring', data: [2100,1900,2300,2000,2200,1800], backgroundColor: 'rgba(214,86,43,0.5)' },
-              { label: 'Other', data: [800,750,900,850,950,700], backgroundColor: 'rgba(255,255,255,0.1)' },
-            ]
-          },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }, scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => '$'+v.toLocaleString() } } } }
-        });
-      }
-    },
-
-    // Acumatica API layer — all calls route through /api/acumatica proxy.
-    // Credentials live in backend .env only; never sent to or stored in the browser.
-    // Write-back is DISABLED (sandbox mode) until explicitly enabled server-side.
-    async acuFetch(endpoint, method='GET', body=null) {
-      const opts = {
-        method,
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      };
-      if (body) opts.body = JSON.stringify(body);
-      try {
-        const r = await fetch('/api/acumatica' + endpoint, opts);
-        if (!r.ok) throw new Error(`ACU ${r.status}`);
-        return await r.json();
-      } catch(e) {
-        this.toast('Acumatica proxy: ' + e.message, 'error');
-        this.acuStatus = 'error';
-        return null;
-      }
-    },
-
-    async syncNow() {
-      this.acuStatus = 'syncing';
-      this.toast('Syncing with Acumatica...', 'info');
-      // Real call: await this.acuFetch('/ProductionOrder?$select=OrderNbr,Status,ProductID,QtytoProduce')
-      setTimeout(() => {
-        this.acuStatus = 'connected';
-        this.lastSync = 'just now';
-        this.toast('Acumatica sync complete', 'success');
-      }, 2000);
-    },
-
-    acuAction(alert) {
-      this.toast(`Opening ${alert.acuAction} in Acumatica for ${alert.sku}`, 'info');
-      // Real: window.open(acuBase + '/MFG/MFGProductionOrderEntry.aspx?...')
-    },
-
-    openAcuLink(link) {
-      this.toast('Opening Acumatica: ' + link.label, 'info');
-    },
-
-    async createPO(item) {
-      this.toast(`Creating PO for ${item.ingredient} in Acumatica...`, 'info');
-      // Real call:
-      // await this.acuFetch('/PurchaseOrder', 'PUT', {
-      //   VendorID: { value: item.vendorId },
-      //   Details: [{ InventoryID: { value: item.itemId }, Quantity: { value: item.recQty } }]
-      // })
-      setTimeout(() => this.toast(`PO created: ${item.ingredient} ${item.recQty} ${item.unit}`, 'success'), 1200);
-    },
-
-    createAllPOs() {
-      const urgent = this.poRecommendations.filter(p => p.urgency === 'URGENT' || p.urgency === 'HIGH');
-      this.toast(`Creating ${urgent.length} POs in Acumatica...`, 'info');
-      setTimeout(() => this.toast(`${urgent.length} POs created successfully`, 'success'), 2000);
-    },
-
-    startRun(run) {
-      this.toast(`Starting ${run.sku} — updating MO ${run.moNumber} in Acumatica`, 'success');
-      run.status = 'IN PROGRESS';
-    },
-
-    resolveBlock(run) {
-      this.setView('ordering');
-      this.toast(`Redirecting to ordering to resolve block on ${run.runId}`, 'info');
-    },
-
-    reviewRun(run) {
-      this.toast(`Reviewing ${run.moNumber}`, 'info');
-    },
-
-    viewMO(run) {
-      this.toast(`Opening MO ${run.moNumber} in Acumatica`, 'info');
-    },
-
-    ackAll() {
-      this.liveAlerts.forEach(a => a.acked = true);
-      this.alertCount = 0;
-      this.toast('All alerts acknowledged', 'success');
-    },
-
-    pushToAcu() {
-      this.toast('Pushing alert statuses to Acumatica...', 'info');
-    },
-
-    agentAction(type) {
-      const msgs = { po: 'PO draft created in Acumatica — pending Chris approval', sms: 'SMS sent to Larry: Protein Crunch Berry gap alert', slack: 'Posted to #ops-alerts Slack channel' };
-      this.toast(msgs[type], 'success');
-    },
-
-    triggerAgent(agent) {
-      agent.status = 'running';
-      this.toast(`${agent.name} triggered`, 'info');
-      setTimeout(() => { agent.status = 'idle'; this.toast(`${agent.name} completed`, 'success'); }, 3000);
-    },
-
-    configAgent(agent) {
-      this.toast('Agent config panel — coming soon', 'info');
-    },
-
-    exportYield() {
-      this.toast('Exporting yield data as CSV...', 'info');
-    },
-
-    sendBriefEmail() {
-      this.toast('Morning brief sent to chris@peakrefuel.com', 'success');
-      this.showMorningBrief = false;
-    },
-
-    sendBriefSlack() {
-      this.toast('Morning brief posted to #exec-daily Slack', 'success');
-      this.showMorningBrief = false;
-    },
-
-    clearAll() {
-      this.notifications = [];
-      this.alertCount = 0;
-      this.showNotif = false;
-    },
-
-    // Chat: sends to /api/chat — never calls OpenAI/Claude directly from the browser
-    async sendChat() {
-      if (!this.chatInput.trim() || this.chatLoading) return;
-      const content = this.chatInput.trim();
-      this.chatInput = '';
-      const userMsg = {
-        id: Date.now(),
-        role: 'user',
-        content,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        dept: this.chatMeta.dept || '',
-        source: 'Chris',
-        tags: [this.chatMeta.dept, this.chatMeta.urgency !== 'normal' ? this.chatMeta.urgency : null, this.chatMeta.followUp ? 'follow-up' : null].filter(Boolean),
-      };
-      this.chatMessages.push(userMsg);
-      this.chatLoading = true;
-      this.$nextTick(() => { const el = this.$refs.chatScroll; if (el) el.scrollTop = el.scrollHeight; });
-      this.logConversation(userMsg);
-      try {
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: content,
-            department: this.chatMeta.dept,
-            urgency: this.chatMeta.urgency,
-            followUp: this.chatMeta.followUp,
-            person: 'chris',
-            session: this.chatSessionId,
-            history: this.chatMessages.slice(-12).map(m => ({ role: m.role, content: m.content })),
-          }),
-        });
-        const data = await res.json();
-        const botMsg = {
-          id: Date.now() + 1,
-          role: 'assistant',
-          content: data.reply || data.message || '(empty response from backend)',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          source: data.source || 'backend',
-          tags: data.tags || [],
-        };
-        this.chatMessages.push(botMsg);
-        this.logConversation(botMsg);
-      } catch(e) {
-        this.chatMessages.push({
-          id: Date.now() + 1,
-          role: 'assistant',
-          content: 'Backend unavailable — make sure /api/chat is running. (' + e.message + ')',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          source: 'error',
-          tags: ['error'],
-        });
-      } finally {
-        this.chatLoading = false;
-        this.$nextTick(() => { const el = this.$refs.chatScroll; if (el) el.scrollTop = el.scrollHeight; });
-      }
-    },
-
-    // Silently logs every message to /api/log/conversation — non-blocking
-    async logConversation(msg) {
-      try {
-        await fetch('/api/log/conversation', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...msg, session: this.chatSessionId, meta: this.chatMeta }),
-        });
-      } catch(_) { /* silent — logging must never break chat */ }
-    },
-
-    // Sends session context to /api/log/obsidian for vault persistence
-    async logToObsidian(type) {
-      const typeMap = { raw: ['💾','Raw Chat'], summary: ['📋','Summary'], actions: ['✅','Action Items'], sop: ['📐','SOP Candidates'], skills: ['🧠','Skill Candidates'], deptTags: ['🏷️','Dept Tags'] };
-      const [icon, label] = typeMap[type] || ['📝', type];
-      if (this.chatMessages.length === 0) { this.toast('No messages to log yet', 'warning'); return; }
-      try {
-        const res = await fetch('/api/log/obsidian', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type, messages: this.chatMessages, meta: this.chatMeta, session: this.chatSessionId, timestamp: new Date().toISOString() }),
-        });
-        if (!res.ok) throw new Error(res.status);
-        this.obsidianLogs.unshift({ id: Date.now(), icon, label: label + ' saved', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
-        this.toast(icon + ' ' + label + ' saved to Obsidian', 'success');
-      } catch(e) {
-        this.toast('Obsidian backend unavailable (' + e.message + ')', 'error');
-      }
-    },
-
-    saveSettings() {
-      this.toast('Preferences saved', 'success');
-      this.showSettings = false;
-    },
-
-    toast(msg, type='info') {
-      const colors = { success: '#ACBF37', error: '#ef4444', info: '#FF671F', warning: '#fbbf24' };
-      const el = document.createElement('div');
-      el.style.cssText = `background:#2a2522;border:1px solid ${colors[type]}40;border-left:3px solid ${colors[type]};border-radius:10px;padding:12px 16px;font-size:13px;color:#E9E9E9;max-width:320px;box-shadow:0 8px 24px rgba(0,0,0,0.4);animation:slideIn 0.2s ease;`;
-      el.textContent = msg;
-      document.getElementById('toastContainer').appendChild(el);
-      setTimeout(() => el.remove(), 3500);
-    },
-  }
+    </aside>
+  `;
 }
 
-const style = document.createElement('style');
-style.textContent = '@keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }';
-document.head.appendChild(style);
+/* ═══════════════════════════════════════════════════════════════════
+   COMMAND BAR
+═══════════════════════════════════════════════════════════════════ */
+
+function CommandBar({ activeSection, onToggleTv, onToggleChat, chatOpen, syncing, onSync, showBriefModal, onBrief }) {
+  const [showNotif, setShowNotif] = useState(false);
+  const section = SECTIONS.find(s => s.id === activeSection) || SECTIONS[0];
+
+  return html`
+    <header class="command-bar sticky top-0 z-20 flex items-center px-4 h-14 gap-3 flex-shrink-0">
+      <!-- Section breadcrumb -->
+      <div class="flex-1 min-w-0">
+        <div class="font-display font-bold text-xl text-white tracking-wide leading-none truncate">${section.title}</div>
+        <div class="text-[9px] font-mono text-[rgba(255,103,31,0.65)] uppercase tracking-widest mt-0.5 truncate">${section.question}</div>
+      </div>
+      <!-- Actions -->
+      <div class="flex items-center gap-1.5 flex-shrink-0">
+        <button class="btn btn-ghost flex items-center gap-1.5 text-[#ACBF37] border text-xs px-3" style="border-color:rgba(172,191,55,0.25);background:rgba(172,191,55,0.06)" onClick=${onBrief}>
+          ☀ <span class="hidden sm:inline">Morning Brief</span>
+        </button>
+        <button class="btn btn-ghost btn-icon" onClick=${onSync} title="Sync Acumatica">
+          <span class=${syncing ? 'animate-spin inline-block' : 'inline-block'} style="font-size:15px">↻</span>
+        </button>
+        <div class="relative">
+          <button class="btn btn-ghost btn-icon relative" onClick=${()=>setShowNotif(v=>!v)}>
+            🔔
+            <span class="absolute top-1 right-1 w-3.5 h-3.5 rounded-full text-white flex items-center justify-center text-[8px] font-bold" style="background:#FF671F">4</span>
+          </button>
+          ${showNotif && html`
+            <>
+              <div class="fixed inset-0 z-30" onClick=${()=>setShowNotif(false)}></div>
+              <div class="absolute right-0 top-full mt-2 w-72 z-40 rounded-xl shadow-2xl overflow-hidden" style="background:#1e1a17;border:1px solid rgba(255,255,255,0.08)">
+                <div class="flex items-center justify-between px-4 py-3 border-b" style="border-color:rgba(255,255,255,0.06)">
+                  <span class="font-semibold text-sm">Live Alerts</span>
+                  <button class="text-xs text-[#9a9491] hover:text-white" onClick=${()=>setShowNotif(false)}>Clear</button>
+                </div>
+                ${LIVE_ALERTS.slice(0,4).map(a => html`
+                  <div key=${a.id} class=${'px-4 py-3 border-b hover:bg-[rgba(255,255,255,0.02)] transition-colors last:border-0 alert-' + a.severity} style="border-color:rgba(255,255,255,0.05)">
+                    <div class="flex items-start justify-between gap-2">
+                      <span class="text-sm font-medium text-white text-xs">${a.title}</span>
+                      <span class=${'badge ' + a.badgeColor + ' text-[9px]'}>${a.badge}</span>
+                    </div>
+                    <div class="text-[10px] text-[#9a9491] mt-0.5">${a.time}</div>
+                  </div>
+                `)}
+              </div>
+            </>
+          `}
+        </div>
+        <button class=${'btn btn-ghost btn-icon ' + (chatOpen ? 'text-[#FF671F]' : '')} style=${chatOpen ? 'background:rgba(255,103,31,0.12)' : ''} onClick=${onToggleChat} title="Toggle Chat">💬</button>
+        <button class="btn btn-ghost btn-icon" onClick=${onToggleTv} title="Full-screen / TV mode">⤢</button>
+      </div>
+    </header>
+  `;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MORNING BRIEF MODAL
+═══════════════════════════════════════════════════════════════════ */
+
+function MorningBriefModal({ onClose }) {
+  return html`
+    <>
+      <div class="modal-overlay" onClick=${onClose}></div>
+      <div class="modal">
+        <div class="w-full max-w-lg rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto" style="background:#1e1a17;border:1px solid rgba(255,255,255,0.08)">
+          <div class="flex items-center justify-between mb-5">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:rgba(172,191,55,0.1);border:1px solid rgba(172,191,55,0.25)">☀</div>
+              <div>
+                <div class="font-display font-bold text-xl text-white">Morning Executive Brief</div>
+                <div class="text-xs text-[#9a9491]">${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}</div>
+              </div>
+            </div>
+            <button class="text-[#9a9491] hover:text-white text-2xl" onClick=${onClose}>×</button>
+          </div>
+          <div class="grid grid-cols-3 gap-2 mb-5">
+            ${[{l:'Production',v:'4 on track',ok:true},{l:'Inventory',v:'6/8 SKUs',ok:false},{l:'Open Orders',v:'24 SOs',ok:true},{l:'Yield',v:'91.4% avg',ok:true},{l:'Purchasing',v:'2 urgent POs',ok:false},{l:'Cash',v:'ACU current',ok:true}].map(x => html`
+              <div key=${x.l} class="rounded-xl p-3 text-center" style=${{background:x.ok?'rgba(172,191,55,0.06)':'rgba(239,68,68,0.06)',border:`1px solid ${x.ok?'rgba(172,191,55,0.2)':'rgba(239,68,68,0.2)'}`}}>
+                <div class="text-xl mb-1">${x.ok?'✅':'⚠️'}</div>
+                <div class="text-xs font-semibold text-white">${x.l}</div>
+                <div class="text-xs text-[#9a9491] mt-0.5">${x.v}</div>
+              </div>
+            `)}
+          </div>
+          <div class="space-y-2 mb-5">
+            <div class="text-sm font-semibold text-[#FF671F] mb-2">Key Observations</div>
+            ${['Whey Protein Isolate below reorder point — PO needed within 48 hours.','SKU-042 tracking 23% below weekly forecast. SO-10482 at risk.','MO-20440 completed: 4,200 Chocolate Fudge units added to inventory.','Vanilla Cream yield dropped 4.8% over last 3 batches. Review mixing parameters.','New SO from Summit Sports ($14,200). Production capacity can accommodate.'].map((obs,i) => html`
+              <div key=${i} class="flex items-start gap-2 text-sm text-[#9a9491]">
+                <span class="text-[#FF671F] mt-0.5 flex-shrink-0">›</span><span>${obs}</span>
+              </div>
+            `)}
+          </div>
+          <div class="flex gap-3">
+            <button class="btn btn-primary flex-1 rounded-xl py-2.5" onClick=${onClose}>Send to Chris via Email</button>
+            <button class="btn btn-outline rounded-xl py-2.5 px-4" onClick=${onClose}>Post to Slack</button>
+          </div>
+        </div>
+      </div>
+    </>
+  `;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ROOT APP
+═══════════════════════════════════════════════════════════════════ */
+
+const SECTION_COMPONENTS = {
+  executive: ExecutiveCommand,
+  departments: DepartmentIntelligence,
+  interview: EmployeeInterview,
+  painpoints: PainPointDiscovery,
+  training: TrainingGaps,
+  recommendations: RecommendationEngine,
+  obsidian: ObsidianBrain,
+  system: SystemStatus,
+};
+
+function App() {
+  const [activeSection, setActiveSection] = useState('executive');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [chatOpen, setChatOpen] = useState(true);
+  const [tvMode, setTvMode] = useState(false);
+  const [showBrief, setShowBrief] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const mainRef = useRef(null);
+
+  // IntersectionObserver for active section
+  useEffect(() => {
+    const observers = [];
+    SECTIONS.forEach(({ id }) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const obs = new IntersectionObserver(([entry]) => {
+        if (entry.isIntersecting) setActiveSection(id);
+      }, { rootMargin: '-25% 0px -65% 0px', threshold: 0, root: mainRef.current });
+      obs.observe(el);
+      observers.push(obs);
+    });
+    return () => observers.forEach(o => o.disconnect());
+  }, []);
+
+  const scrollTo = (id) => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setActiveSection(id);
+  };
+
+  const handleSync = () => {
+    setSyncing(true);
+    setTimeout(() => setSyncing(false), 1800);
+  };
+
+  if (tvMode) {
+    return html`
+      <div class="fixed inset-0 overflow-auto p-8" style="background:#0c0a09;z-index:9999">
+        <button class="fixed top-4 right-4 z-50 px-3 py-1.5 rounded-lg text-white text-xs font-medium" style="background:rgba(255,255,255,0.1)" onClick=${()=>setTvMode(false)}>✕ Exit Full Screen</button>
+        ${html`<${ExecutiveCommand} />`}
+      </div>
+    `;
+  }
+
+  return html`
+    <div class="flex h-screen overflow-hidden" style="background:#0c0a09">
+      <!-- Sidebar -->
+      ${html`<${Sidebar} activeSection=${activeSection} collapsed=${sidebarCollapsed} onCollapse=${()=>setSidebarCollapsed(v=>!v)} onNavigate=${scrollTo} />`}
+
+      <!-- Main -->
+      <div class="flex flex-col flex-1 min-w-0 overflow-hidden">
+        ${html`<${CommandBar}
+          activeSection=${activeSection}
+          onToggleTv=${()=>setTvMode(true)}
+          onToggleChat=${()=>setChatOpen(v=>!v)}
+          chatOpen=${chatOpen}
+          syncing=${syncing}
+          onSync=${handleSync}
+          onBrief=${()=>setShowBrief(true)}
+        />`}
+        <main ref=${mainRef} class="flex-1 overflow-y-auto" style="scroll-behavior:smooth">
+          <div class="px-6 py-8 max-w-6xl mx-auto space-y-20">
+            ${SECTIONS.map(s => {
+              const SectionComp = SECTION_COMPONENTS[s.id];
+              return html`<div key=${s.id} id=${s.id} class="scroll-mt-16">${html`<${SectionComp} />`}</div>`;
+            })}
+            <div class="h-16"></div>
+          </div>
+        </main>
+      </div>
+
+      <!-- Chat Dock -->
+      ${chatOpen && html`<${ChatDock} onClose=${()=>setChatOpen(false)} />`}
+
+      <!-- Modals -->
+      ${showBrief && html`<${MorningBriefModal} onClose=${()=>setShowBrief(false)} />`}
+    </div>
+  `;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MOUNT
+═══════════════════════════════════════════════════════════════════ */
+
+const root = createRoot(document.getElementById('root'));
+root.render(html`<${App} />`);
 </script>
 </body>
 </html>
