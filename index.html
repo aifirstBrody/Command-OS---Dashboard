@@ -747,41 +747,94 @@ tailwind.config = {
           <button class="tab-btn" :class="{active: scheduleTab==='commits'}" @click="scheduleTab='commits'">Customer Commits</button>
         </div>
 
-        <!-- MASTER SNAPSHOT TAB -->
+       <!-- MASTER SNAPSHOT TAB -->
         <div x-show="scheduleTab==='snapshot'">
+          
+          <!-- Search + Export Bar -->
+          <div class="flex gap-3 mb-4 flex-wrap">
+            <input type="search" placeholder="Search SKU or product..." 
+                   x-model="scheduleSearch" 
+                   class="flex-1 min-w-[200px] bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-brand-orange/50"/>
+            <select x-model="schedulePriorityFilter" 
+                    class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-brand-orange/50">
+              <option value="all">All Priorities</option>
+              <option value="HIGH">High Only</option>
+              <option value="MED">Medium Only</option>
+              <option value="LOW">Low Only</option>
+              <option value="OK">OK Only</option>
+            </select>
+            <button @click="exportScheduleCSV()" class="text-xs px-4 py-2 rounded-lg bg-brand-orange/15 border border-brand-orange/30 text-brand-orange hover:bg-brand-orange/25 transition-colors font-semibold">
+              ↓ Export CSV
+            </button>
+          </div>
+
           <div class="card overflow-hidden">
             <div class="px-4 py-3 border-b border-white/5 flex items-center justify-between">
               <span class="font-semibold text-sm">SKU Master Snapshot — Michael's Schedule + Live Acumatica</span>
-              <span class="text-xs text-gray-500">As of <span x-text="scheduleAsOf"></span></span>
+              <span class="text-xs text-gray-500">As of <span x-text="scheduleAsOf"></span> · <span x-text="filteredSchedule.length + ' SKUs'"></span></span>
             </div>
             <div class="overflow-x-auto">
               <table class="data-table w-full">
                 <thead>
                   <tr>
-                    <th>SKU</th><th>Product</th><th>Inv (Mike)</th><th>Inv (Acu)</th><th>Diff</th>
-                    <th>Annual Demand</th><th>Fcst Jul-Dec</th><th>Open Commits</th><th>Suggested Prod</th>
+                    <th @click="sortSchedule('sku')" class="cursor-pointer hover:text-white">SKU</th>
+                    <th @click="sortSchedule('product')" class="cursor-pointer hover:text-white">Product</th>
+                    <th @click="sortSchedule('invMike')" class="cursor-pointer hover:text-white text-right">Inv (Mike)</th>
+                    <th @click="sortSchedule('invAcu')" class="cursor-pointer hover:text-white text-right">Inv (Acu)</th>
+                    <th @click="sortSchedule('diff')" class="cursor-pointer hover:text-white text-right">Diff</th>
+                    <th @click="sortSchedule('annual')" class="cursor-pointer hover:text-white text-right">Annual Demand</th>
+                    <th @click="sortSchedule('fcstJulDec')" class="cursor-pointer hover:text-white text-right">Fcst Jul-Dec</th>
+                    <th @click="sortSchedule('openCommits')" class="cursor-pointer hover:text-white text-right">Open Commits</th>
+                    <th class="text-right">Suggested Prod</th>
+                    <th class="text-center">Priority</th>
+                    <th>Notes</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <template x-for="s in scheduleMaster" :key="s.sku">
+                  <template x-for="s in filteredSchedule" :key="s.sku">
                     <tr>
                       <td class="font-mono text-xs text-gray-400" x-text="s.sku"></td>
                       <td class="text-white font-medium" x-text="s.product"></td>
-                      <td x-text="s.invMike.toLocaleString()"></td>
-                      <td x-text="s.invAcu.toLocaleString()"></td>
-                      <td :class="s.diff < 0 ? 'text-red-400 font-semibold' : 'text-brand-green font-semibold'" x-text="(s.diff>0?'+':'')+s.diff.toLocaleString()"></td>
-                      <td x-text="s.annual.toLocaleString()"></td>
-                      <td x-text="s.fcstJulDec.toLocaleString()"></td>
-                      <td x-text="s.openCommits.toLocaleString()"></td>
-                      <td :class="s.suggested > 0 ? 'text-brand-orange font-semibold' : 'text-gray-500'" x-text="s.suggested > 0 ? s.suggested.toLocaleString() : '—'"></td>
+                      <td class="text-right" x-text="s.invMike.toLocaleString()"></td>
+                      <td class="text-right" x-text="s.invAcu.toLocaleString()"></td>
+                      <td class="text-right" :class="s.diff < 0 ? 'text-red-400 font-semibold' : 'text-brand-green font-semibold'" x-text="(s.diff>0?'+':'')+s.diff.toLocaleString()"></td>
+                      <td class="text-right" x-text="s.annual.toLocaleString()"></td>
+                      <td class="text-right" x-text="s.fcstJulDec.toLocaleString()"></td>
+                      <td class="text-right" x-text="s.openCommits.toLocaleString()"></td>
+                      <td>
+                        <input type="number" 
+                               x-model.number="s.suggested" 
+                               @input="syncToMonthly(s)"
+                               class="w-24 bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-brand-orange font-semibold text-right focus:outline-none focus:border-brand-orange/50"/>
+                      </td>
+                      <td class="text-center">
+                        <span :class="priorityBadge(s)" x-text="computePriority(s)"></span>
+                      </td>
+                      <td>
+                        <input type="text" 
+                               x-model="s.notes" 
+                               placeholder="Add note..."
+                               class="w-full min-w-[150px] bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-gray-300 focus:outline-none focus:border-brand-orange/50"/>
+                      </td>
                     </tr>
                   </template>
+                  <!-- Totals row -->
+                  <tr class="border-t-2 border-brand-orange/30 bg-white/5">
+                    <td class="font-bold text-white" colspan="2">TOTALS</td>
+                    <td class="text-right font-bold text-white" x-text="totalSchedule('invMike').toLocaleString()"></td>
+                    <td class="text-right font-bold text-white" x-text="totalSchedule('invAcu').toLocaleString()"></td>
+                    <td class="text-right font-bold" :class="totalSchedule('diff')<0?'text-red-400':'text-brand-green'" x-text="totalSchedule('diff').toLocaleString()"></td>
+                    <td class="text-right font-bold text-white" x-text="totalSchedule('annual').toLocaleString()"></td>
+                    <td class="text-right font-bold text-white" x-text="totalSchedule('fcstJulDec').toLocaleString()"></td>
+                    <td class="text-right font-bold text-white" x-text="totalSchedule('openCommits').toLocaleString()"></td>
+                    <td class="text-right font-bold text-brand-orange" x-text="totalSchedule('suggested').toLocaleString()"></td>
+                    <td colspan="2"></td>
+                  </tr>
                 </tbody>
               </table>
             </div>
           </div>
         </div>
-
         <!-- MONTHLY PLAN TAB -->
         <div x-show="scheduleTab==='monthly'">
           <div class="card overflow-hidden">
