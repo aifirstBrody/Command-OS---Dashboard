@@ -1461,6 +1461,57 @@ function app() {
           options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }, scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => '$'+v.toLocaleString() } } } }
         });
       }
+
+      // Capacity chart
+      const cap = document.getElementById('capacityChart');
+      if (cap && !this.charts.capacity) {
+        this.charts.capacity = new Chart(cap, {
+          type: 'bar',
+          data: {
+            labels: this.scheduleCapacity.map(c => c.month),
+            datasets: [
+              {
+                label: 'Production Planned',
+                data: this.scheduleCapacity.map(c => c.production),
+                backgroundColor: this.scheduleCapacity.map(c => c.util > 90 ? 'rgba(239,68,68,0.7)' : c.util > 70 ? 'rgba(251,191,36,0.7)' : 'rgba(172,191,55,0.7)'),
+                borderRadius: 4,
+              },
+              {
+                label: 'Capacity (400K)',
+                data: this.scheduleCapacity.map(() => 400000),
+                type: 'line',
+                borderColor: 'rgba(99,179,237,0.6)',
+                borderWidth: 2,
+                borderDash: [5,5],
+                pointRadius: 0,
+                fill: false,
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+              tooltip: {
+                callbacks: {
+                  afterLabel: (ctx) => {
+                    if (ctx.datasetIndex === 0) {
+                      const c = this.scheduleCapacity[ctx.dataIndex];
+                      return `Util: ${c.util}% · Commits: ${c.commits.toLocaleString()}`;
+                    }
+                    return '';
+                  }
+                }
+              }
+            },
+            scales: {
+              y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => (v/1000)+'K' } },
+              x: { grid: { display: false } }
+            }
+          }
+        });
+      }
     },
 
     // Acumatica API layer
