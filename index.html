@@ -734,7 +734,142 @@ tailwind.config = {
           </div>
         </div>
       </div>
+      <!-- ═══════════════════════════════════════ -->
+      <!-- VIEW: PRODUCTION SCHEDULE                -->
+      <!-- ═══════════════════════════════════════ -->
+      <div class="view-panel" :class="{active: activeView==='schedule'}">
 
+        <!-- Tabs -->
+        <div class="flex gap-2 mb-5 flex-wrap">
+          <button class="tab-btn" :class="{active: scheduleTab==='snapshot'}" @click="scheduleTab='snapshot'">Master Snapshot</button>
+          <button class="tab-btn" :class="{active: scheduleTab==='monthly'}" @click="scheduleTab='monthly'">Monthly Plan</button>
+          <button class="tab-btn" :class="{active: scheduleTab==='capacity'}" @click="scheduleTab='capacity'">Capacity</button>
+          <button class="tab-btn" :class="{active: scheduleTab==='commits'}" @click="scheduleTab='commits'">Customer Commits</button>
+        </div>
+
+        <!-- MASTER SNAPSHOT TAB -->
+        <div x-show="scheduleTab==='snapshot'">
+          <div class="card overflow-hidden">
+            <div class="px-4 py-3 border-b border-white/5 flex items-center justify-between">
+              <span class="font-semibold text-sm">SKU Master Snapshot — Michael's Schedule + Live Acumatica</span>
+              <span class="text-xs text-gray-500">As of <span x-text="scheduleAsOf"></span></span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="data-table w-full">
+                <thead>
+                  <tr>
+                    <th>SKU</th><th>Product</th><th>Inv (Mike)</th><th>Inv (Acu)</th><th>Diff</th>
+                    <th>Annual Demand</th><th>Fcst Jul-Dec</th><th>Open Commits</th><th>Suggested Prod</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="s in scheduleMaster" :key="s.sku">
+                    <tr>
+                      <td class="font-mono text-xs text-gray-400" x-text="s.sku"></td>
+                      <td class="text-white font-medium" x-text="s.product"></td>
+                      <td x-text="s.invMike.toLocaleString()"></td>
+                      <td x-text="s.invAcu.toLocaleString()"></td>
+                      <td :class="s.diff < 0 ? 'text-red-400 font-semibold' : 'text-brand-green font-semibold'" x-text="(s.diff>0?'+':'')+s.diff.toLocaleString()"></td>
+                      <td x-text="s.annual.toLocaleString()"></td>
+                      <td x-text="s.fcstJulDec.toLocaleString()"></td>
+                      <td x-text="s.openCommits.toLocaleString()"></td>
+                      <td :class="s.suggested > 0 ? 'text-brand-orange font-semibold' : 'text-gray-500'" x-text="s.suggested > 0 ? s.suggested.toLocaleString() : '—'"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- MONTHLY PLAN TAB -->
+        <div x-show="scheduleTab==='monthly'">
+          <div class="card overflow-hidden">
+            <div class="px-4 py-3 border-b border-white/5">
+              <span class="font-semibold text-sm">Monthly Plan — Jan-Jun (Actuals) · Jul-Dec (Forward)</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="data-table w-full text-xs">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <template x-for="m in scheduleMonths" :key="m"><th x-text="m"></th></template>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="row in scheduleMonthly" :key="row.product">
+                    <tr>
+                      <td class="text-white font-medium" x-text="row.product"></td>
+                      <template x-for="m in scheduleMonths" :key="m">
+                        <td :class="['Jan','Feb','Mar','Apr','May','Jun'].includes(m) ? 'text-gray-500' : ''" x-text="row[m] ? row[m].toLocaleString() : '—'"></td>
+                      </template>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- CAPACITY TAB -->
+        <div x-show="scheduleTab==='capacity'">
+          <div class="card p-4 mb-4">
+            <div class="font-semibold text-sm mb-3 text-white">Co-Packer Capacity Utilization — 400K pouches/month</div>
+            <div class="chart-wrap" style="height:240px">
+              <canvas id="capacityChart"></canvas>
+            </div>
+          </div>
+          <div class="card overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="data-table w-full">
+                <thead>
+                  <tr><th>Month</th><th>Demand (Bumped)</th><th>Commits</th><th>Production Planned</th><th>Capacity Util %</th></tr>
+                </thead>
+                <tbody>
+                  <template x-for="c in scheduleCapacity" :key="c.month">
+                    <tr>
+                      <td class="text-white font-medium" x-text="c.month"></td>
+                      <td x-text="c.demand.toLocaleString()"></td>
+                      <td x-text="c.commits.toLocaleString()"></td>
+                      <td x-text="c.production.toLocaleString()"></td>
+                      <td :class="c.util > 90 ? 'text-red-400 font-bold' : c.util > 70 ? 'text-yellow-400 font-semibold' : 'text-brand-green font-semibold'" x-text="c.util + '%'"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- CUSTOMER COMMITS TAB -->
+        <div x-show="scheduleTab==='commits'">
+          <div class="card overflow-hidden">
+            <div class="px-4 py-3 border-b border-white/5">
+              <span class="font-semibold text-sm">Open Customer Commitments — Replaces Order Summary tab</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="data-table w-full">
+                <thead>
+                  <tr><th>Customer</th><th>Total Open Qty</th><th># SKUs</th><th># Orders</th><th>Earliest Ship</th><th>Latest Ship</th></tr>
+                </thead>
+                <tbody>
+                  <template x-for="c in scheduleCustomers" :key="c.customer">
+                    <tr>
+                      <td class="text-white font-medium" x-text="c.customer"></td>
+                      <td class="text-brand-orange font-semibold" x-text="c.qty.toLocaleString()"></td>
+                      <td x-text="c.skus"></td>
+                      <td x-text="c.orders"></td>
+                      <td class="text-gray-400" x-text="c.earliest"></td>
+                      <td class="text-gray-400" x-text="c.latest"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
       <!-- ═══════════════════════════════════════ -->
       <!-- VIEW: AGENTS                            -->
       <!-- ═══════════════════════════════════════ -->
