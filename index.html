@@ -1090,6 +1090,9 @@ function app() {
     inventorySearch: '',
     inventoryFilter: 'all',
     scheduleTab: 'snapshot',
+    scheduleSearch: '',
+    schedulePriorityFilter: 'all',
+    scheduleSort: { col: null, dir: 'asc' },
     scheduleAsOf: 'Jun 22, 2026',
     scheduleMonths: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
 
@@ -1401,6 +1404,81 @@ function app() {
 
     charts: {},
 
+    get filteredSchedule() {
+      let items = [...this.scheduleMaster];
+      if (this.scheduleSearch) {
+        const q = this.scheduleSearch.toLowerCase();
+        items = items.filter(s => s.sku.toLowerCase().includes(q) || s.product.toLowerCase().includes(q));
+      }
+      if (this.schedulePriorityFilter !== 'all') {
+        items = items.filter(s => this.computePriority(s) === this.schedulePriorityFilter);
+      }
+      if (this.scheduleSort.col) {
+        const c = this.scheduleSort.col, d = this.scheduleSort.dir;
+        items.sort((a,b) => {
+          let va = a[c], vb = b[c];
+          if (typeof va === 'string') return d==='asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+          return d==='asc' ? va - vb : vb - va;
+        });
+      }
+      return items;
+    },
+
+    computePriority(s) {
+      const needed = s.fcstJulDec + s.openCommits;
+      const have = s.invAcu + s.suggested;
+      const gap = have - needed;
+      if (gap < 0) return 'HIGH';
+      if (gap < needed * 0.1) return 'MED';
+      if (gap < needed * 0.3) return 'LOW';
+      return 'OK';
+    },
+
+    priorityBadge(s) {
+      const p = this.computePriority(s);
+      return 'badge-' + (p==='HIGH'?'red':p==='MED'?'yellow':p==='LOW'?'orange':'green');
+    },
+
+    sortSchedule(col) {
+      if (this.scheduleSort.col === col) {
+        this.scheduleSort.dir = this.scheduleSort.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        this.scheduleSort.col = col;
+        this.scheduleSort.dir = col === 'product' || col === 'sku' ? 'asc' : 'desc';
+      }
+    },
+
+    totalSchedule(field) {
+      return this.filteredSchedule.reduce((sum, s) => sum + (s[field] || 0), 0);
+    },
+
+    syncToMonthly(s) {
+      const monthly = this.scheduleMonthly.find(m => m.product === s.product || s.product.includes(m.product.split(' ')[0]));
+      if (!monthly) return;
+      const futureMonths = ['Jul','Aug','Sep','Oct','Nov','Dec'];
+      const totalFuture = futureMonths.reduce((sum, m) => sum + (monthly[m] || 0), 0);
+      if (totalFuture === 0) return;
+      futureMonths.forEach(m => {
+        monthly[m + '_planned'] = Math.round(s.suggested * (monthly[m] / totalFuture));
+      });
+    },
+
+    exportScheduleCSV() {
+      const headers = ['SKU','Product','Inv (Mike)','Inv (Acu)','Diff','Annual Demand','Fcst Jul-Dec','Open Commits','Suggested Prod','Priority','Notes'];
+      const rows = this.filteredSchedule.map(s => [
+        s.sku, s.product, s.invMike, s.invAcu, s.diff, s.annual, s.fcstJulDec, s.openCommits, s.suggested, this.computePriority(s),
+        '"' + (s.notes || '').replace(/"/g, '""') + '"'
+      ]);
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `production-schedule-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      this.toast('Exported CSV', 'success');
+    },
     get filteredAlerts() {
       if (this.alertTab === 'all') return this.liveAlerts;
       if (this.alertTab === 'critical') return this.liveAlerts.filter(a => a.severity === 'critical');
